@@ -9,7 +9,7 @@ rho = 3 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
 deltat = 1.0 # time step
-velocity_factor = 1
+velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
 eta = 0.15 # noise/randomness
@@ -22,7 +22,7 @@ wall_yMin = 1.
 wall_yMax = 9.
 wall_distance = r0 +0.8
 wall_turn = np.deg2rad(110)
-turn_factor = 10.
+turn_factor = 5.
 
 #Defining parameters for a rectangle
 x_min, x_max, y_min, y_max = 4.,6.,4.,6.
@@ -131,7 +131,7 @@ def update(positions, angles, func):
         for j in range(N):
             distance = np.linalg.norm(positions[i] - positions[j])
             # if within interaction radius add angle to list
-            if distance < r0:
+            if (distance < r0) & (distance != 0):
                 # neighbour_angles[].append(angles[j])
                 neigh_angles[count_neigh] = angles[j]
                 count_neigh += 1
@@ -142,13 +142,12 @@ def update(positions, angles, func):
         # if there are neighbours, calculate average angle and noise/randomness       
         # if neighbour_angles:
         wall_turn = varying_angle_turn(dist=distance_to_wall,turn_factor=turn_factor)
+        noise = eta * np.random.uniform(-np.pi, np.pi)
         if count_neigh > 0:
-            average_angle = np.mean(neigh_angles[:count_neigh])
-            noise = eta * np.random.uniform(-np.pi, np.pi)
-            
+            average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
             
             if average_angle <= 0:
-                new_angles[i] = average_angle - wall_turn + noise
+                new_angles[i] = average_angle + wall_turn + noise
             else:
                 new_angles[i] = average_angle + wall_turn + noise
             
