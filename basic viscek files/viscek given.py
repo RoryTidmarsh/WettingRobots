@@ -21,7 +21,8 @@ eta = 0.05
  
 pos = np.random.uniform(0,L,size=(N,2))
 orient = np.random.uniform(-np.pi, np.pi,size=N)
- 
+average_angles = [np.angle(np.sum(np.exp(orient*1.0j)))]
+
 fig, ax= plt.subplots(figsize=(6,6))
  
 qv = ax.quiver(pos[:,0], pos[:,1], np.cos(orient[0]), np.sin(orient), orient, clim=[-np.pi, np.pi])
@@ -51,10 +52,19 @@ def animate(i):
     pos[pos>L] -= L
     pos[pos<0] += L
  
+    average_angles.append(np.angle(np.sum(np.exp(orient*1.0j))))
+
     qv.set_offsets(pos)
     qv.set_UVC(cos, sin,orient)
     return qv,
  
 anim = FuncAnimation(fig,animate,np.arange(1, 100),interval=1, blit=True)
 anim.save('myAnimation.gif', writer='imagemagick', fps=30)
+plt.show()
+
+fig, ax2 = plt.subplots()
+times = np.arange(0,len(average_angles))
+ax2.plot(times, average_angles)
+ax2.set_xlabel("Time")
+ax2.set_ylabel("Angle (radians)")
 plt.show()
