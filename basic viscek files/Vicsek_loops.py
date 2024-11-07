@@ -18,8 +18,15 @@ max_num_neighbours = N # it could be less...
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) # from 0 to 2pi rad
 
+av_frames_angles = 10
+num_frames_av_angles = np.empty(av_frames_angles)
+num_frames_av_angles2 = np.empty(av_frames_angles)
+t = 0
+@numba.njit
+def average_angle(new_angles):
+    return np.angle(np.sum(np.exp(new_angles*1.0j)))
 average_angles = []
-
+average_angles2 = []
 
 @numba.njit
 def update(positions, angles):
@@ -62,22 +69,29 @@ def update(positions, angles):
     # average_angles[t+1] = np.sum(new_angles)
     return new_positions, new_angles
 
-# def average_angle(new_angles):
-#     return 
 def animate(frames):
     print(frames)
+    global positions, angles, t, num_frames_av_angles
     
-    global positions, angles
-    # we were here...
-    new_positions, new_angles = update(positions,angles)
-    average_angles.append(np.angle(np.sum(np.exp(new_angles*1.0j))))
-    # update global variables
+    new_positions, new_angles = update(positions, angles)
+    
+    # Store the new angles in the num_frames_av_angles array
+    average_angles2.append(average_angle(new_angles))
+    num_frames_av_angles[t] = average_angle(new_angles)
+    if t == av_frames_angles - 1:  # Check if we've filled the array
+        average_angles.append(average_angle(num_frames_av_angles))
+        t = 0  # Reset t
+        num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
+    else:
+        t += 1  # Increment t
+        
+    # Update global variables
     positions = new_positions
     angles = new_angles
     
-    # plotting
+    # Update the quiver plot
     qv.set_offsets(positions)
-    qv.set_UVC(np.cos(angles), np.sin(angles), angles)
+    qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
     return qv,
 
 fig, ax = plt.subplots(figsize = (6, 6))   
@@ -87,8 +101,11 @@ ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, b
 plt.show()
 
 fig, ax2 = plt.subplots()
-times = np.arange(0,len(average_angles))
-ax2.plot(times, average_angles)
+times = np.arange(0,len(average_angles))*av_frames_angles
+ax2.plot(times, average_angles, label = "10 frames.")
+ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
 ax2.set_xlabel("Time")
 ax2.set_ylabel("Angle (radians)")
+ax2.set_title("Alignment, averaging from different number of frames.")
+ax2.legend()
 plt.show()
