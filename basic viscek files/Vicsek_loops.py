@@ -28,14 +28,12 @@ t = 0
 # cell list
 cell_size = 2*r0
 lateral_cell_num = int(L/cell_size)
-num_cells = lateral_cell_num**2
+total_num_cells = lateral_cell_num**2
 max_particles_per_cell = int(rho*cell_size**2*10)
 
 @numba.njit
 def get_cell_index(pos, cell_size, num_cells):
     return int(pos[0] // cell_size) % num_cells, int(pos[1] // cell_size) % num_cells
-
-
 # 
 @numba.njit(parallel=True)
 def initialize_cells(positions, cell_size, num_cells, max_particles_per_cell):
@@ -76,11 +74,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
         cell_x, cell_y = get_cell_index(positions[i], cell_size, num_cells)
 
         # Check neighboring cells (3x3 neighborhood)
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
+        for cell_dx in (-1, 0, 1):
+            for cell_dy in (-1, 0, 1):
                 # Ensure neighbor_x and neighbor_y are integers
-                neighbor_x = int((cell_x + dx) % num_cells)
-                neighbor_y = int((cell_y + dy) % num_cells)
+                neighbor_x = int((cell_x + cell_dx) % num_cells)
+                neighbor_y = int((cell_y + cell_dy) % num_cells)
 
                 # Check each particle in the neighboring cell
                 for idx in range(cell_counts[neighbor_x, neighbor_y]):
@@ -115,7 +113,7 @@ def animate(frames):
     print(frames)
     global positions, angles, t, num_frames_av_angles
     
-    new_positions, new_angles = update(positions, angles,cell_size, num_cells, max_particles_per_cell)
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
     # Store the new angles in the num_frames_av_angles array
     average_angles2.append(average_angle(new_angles))
