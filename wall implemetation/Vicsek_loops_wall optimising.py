@@ -37,8 +37,12 @@ t = 0
 @numba.njit
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))
-average_angles = []
+average_angles = [average_angle(positions)]
 # average_angles2 = []
+
+###Average displacement in a 2D histogram over time
+bins = int(L)
+hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
 @numba.njit
 def x_wall_filter(x_pos,y_pos):
@@ -76,7 +80,7 @@ def varying_angle_turn(dist, turn_factor):
     turn_angle = np.where(dist < wall_distance, wall_turn * np.exp(-turn_factor * dist), 0)
     return turn_angle
 
-def plot_x_wall_boundary(ax):
+def plot_x_wall_boundary(ax, wall_color = "blue"):
     """plots the boundary based on the initial dimensions of the wall set.
 
     Args:
@@ -102,7 +106,7 @@ def plot_x_wall_boundary(ax):
     ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
 
     #plot the wall
-    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall")
+    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color)
     return ax
 
 def position_filter(positions, filter_func):
@@ -179,7 +183,7 @@ def update(positions, angles, func):
 
 def animate(frames):
     print(frames)
-    global positions, angles, t, num_frames_av_angles
+    global positions, angles, t, num_frames_av_angles, hist
     
     new_positions, new_angles = update(positions, angles,x_wall_filter)
     
@@ -193,10 +197,12 @@ def animate(frames):
     else:
         t += 1  # Increment t
         
+    #Add positions to the 2D histogram
+    hist += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
     # Update global variables
     positions = new_positions
     angles = new_angles
-    
+
     # Update the quiver plot
     qv.set_offsets(positions)
     qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
@@ -226,4 +232,17 @@ ax2.legend(loc = "upper left")
 ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
 ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
 ax2.grid()
+# plt.show()
+
+hist_normalised = hist.T#/sum(hist)
+# After the animation and histogram calculations
+fig, ax3 = plt.subplots(figsize=(6, 6))
+# Use imshow to display the normalized histogram
+cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rainbow', aspect='auto')
+ax3 = plot_x_wall_boundary(ax3, "red")
+ax3.set_xlabel("X Position")
+ax3.set_ylabel("Y Position")
+ax3.set_title("Normalised 2D Histogram of Particle Positions")
+# Add a colorbar for reference
+fig.colorbar(cax, ax=ax3, label='Density')
 plt.show()

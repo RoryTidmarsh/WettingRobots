@@ -18,6 +18,8 @@ max_num_neighbours = N # it could be less...
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) # from 0 to 2pi rad
 
+
+### Alignment over time
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
 num_frames_av_angles2 = np.empty(av_frames_angles)
@@ -25,8 +27,12 @@ t = 0
 @numba.njit
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))
-average_angles = []
-average_angles2 = []
+average_angles = [average_angle(positions)]
+average_angles2 = [np.mean(positions)]
+
+###Average displacement in a 2D histogram over time
+bins = int(L)
+hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
 @numba.njit
 def update(positions, angles):
@@ -71,7 +77,7 @@ def update(positions, angles):
 
 def animate(frames):
     print(frames)
-    global positions, angles, t, num_frames_av_angles
+    global positions, angles, t, num_frames_av_angles, hist
     
     new_positions, new_angles = update(positions, angles)
     
@@ -84,6 +90,9 @@ def animate(frames):
         num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
     else:
         t += 1  # Increment t
+
+    #Add positions to the 2D histogram
+    hist += np.histogram2d(positions[:, 0], positions[:,1], bins= [xedges,yedges], density = False)[0]
         
     # Update global variables
     positions = new_positions
@@ -108,4 +117,16 @@ ax2.set_xlabel("Time")
 ax2.set_ylabel("Angle (radians)")
 ax2.set_title("Alignment, averaging from different number of frames.")
 ax2.legend()
+plt.show()
+
+hist_normalised = hist.T/sum(hist)
+# After the animation and histogram calculations
+fig, ax3 = plt.subplots(figsize=(6, 6))
+# Use imshow to display the normalized histogram
+cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='hot', aspect='auto')
+ax3.set_xlabel("X Position")
+ax3.set_ylabel("Y Position")
+ax3.set_title("Normalised 2D Histogram of Particle Positions")
+# Add a colorbar for reference
+fig.colorbar(cax, ax=ax3, label='Density')
 plt.show()
