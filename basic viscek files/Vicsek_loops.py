@@ -3,16 +3,16 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numba
 # parameters
-L = 20.0 # size of box
+L = 256.0 # size of box
 rho = 0.5 # density
 N = int(rho * L**2) # number of particles
 print("the number  of particles is ", N)
 r0 = 1.0 # interaction radius
 deltat = 1.0 # time step
 factor = 1.
-v0 = 0.000005 #r0 / deltat * factor # velocity
+v0 = 0.5 #r0 / deltat * factor # velocity
 iterations = 100 # animation frames
-eta = 0.003 # noise/randomness
+eta = 0.3 # noise/randomness
 max_num_neighbours = N//2 #  guess a good value, max is N 
 
 
@@ -26,7 +26,7 @@ num_frames_av_angles2 = np.empty(av_frames_angles)
 t = 0
 
 # cell list
-cell_size = 1.5*r0
+cell_size = 1.*r0
 lateral_num_cells = int(L/cell_size)
 total_num_cells = lateral_num_cells**2
 max_particles_per_cell = int(rho*cell_size**2*10)
@@ -56,7 +56,7 @@ def average_angle(new_angles):
 average_angles = []
 average_angles2 = []
 
-@numba.njit(parallel=False)
+@numba.njit(parallel=True)
 def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
@@ -69,7 +69,7 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
     for i in numba.prange(N):  # Parallelize outer loop
         neigh_angles = np.empty(max_num_neighbours)
         count_neigh = 0
-        neigh_angles.fill(0)  # Reset neighbor angles
+        # neigh_angles.fill(0)  # Reset neighbor angles
 
         # Get particle's cell, ensuring indices are integers
         cell_x, cell_y = get_cell_index(positions[i], cell_size, num_cells)
