@@ -2,23 +2,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numba
-from numba import float64
 # parameters
-L = 60.0 # size of box
+L = 20.0 # size of box
 rho = 0.5 # density
 N = int(rho * L**2) # number of particles
 print("the number  of particles is ", N)
 r0 = 1.0 # interaction radius
 deltat = 1.0 # time step
-factor = 0.2
-v0 = r0 / deltat * factor # velocity
+factor = 1.
+v0 = 0.000005 #r0 / deltat * factor # velocity
 iterations = 100 # animation frames
-eta = 0.5 # noise/randomness
-max_num_neighbours = N # it could be less...
+eta = 0.003 # noise/randomness
+max_num_neighbours = N//2 #  guess a good value, max is N 
+
 
 # initialise positions and angles
 positions = np.random.uniform(0, L, size = (N, 2))
-angles = np.random.uniform(-np.pi, np.pi, size = N) # from 0 to 2pi rad
+angles = np.pi/2*np.ones(N)#np.random.uniform(-np.pi, np.pi, size = N) # from 0 to 2pi rad
 
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
@@ -26,7 +26,7 @@ num_frames_av_angles2 = np.empty(av_frames_angles)
 t = 0
 
 # cell list
-cell_size = 2*r0
+cell_size = 1.5*r0
 lateral_num_cells = int(L/cell_size)
 total_num_cells = lateral_num_cells**2
 max_particles_per_cell = int(rho*cell_size**2*10)
@@ -113,7 +113,7 @@ def animate(frames):
     print(frames)
     global positions, angles, t, num_frames_av_angles
     
-    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
+    new_positions, new_angles = positions, angles #update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
     # Store the new angles in the num_frames_av_angles array
     average_angles2.append(average_angle(new_angles))
@@ -137,7 +137,7 @@ def animate(frames):
 
 fig, ax = plt.subplots(figsize = (6, 6))   
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-ax.grid()
+# ax.grid()
 # for i in range(10000):
 #     animate(i)
 ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
