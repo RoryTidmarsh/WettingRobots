@@ -5,7 +5,7 @@ import numba
 from numba import float64
 # parameters
 L = 60.0 # size of box
-rho = 3.0 # density
+rho = 0.5 # density
 N = int(rho * L**2) # number of particles
 print("the number  of particles is ", N)
 r0 = 1.0 # interaction radius
@@ -27,8 +27,8 @@ t = 0
 
 # cell list
 cell_size = 2*r0
-lateral_cell_num = int(L/cell_size)
-total_num_cells = lateral_cell_num**2
+lateral_num_cells = int(L/cell_size)
+total_num_cells = lateral_num_cells**2
 max_particles_per_cell = int(rho*cell_size**2*10)
 
 @numba.njit
