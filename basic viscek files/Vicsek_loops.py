@@ -56,17 +56,18 @@ def average_angle(new_angles):
 average_angles = []
 average_angles2 = []
 
-@numba.njit(parallel=True)
+@numba.njit(parallel=False)
 def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
     new_angles = np.empty_like(angles)
-    neigh_angles = np.empty(max_num_neighbours)
+    
     
     # Initialize cell lists
     cells, cell_counts = initialize_cells(positions, cell_size, num_cells, max_particles_per_cell)
 
     for i in numba.prange(N):  # Parallelize outer loop
+        neigh_angles = np.empty(max_num_neighbours)
         count_neigh = 0
         neigh_angles.fill(0)  # Reset neighbor angles
 
@@ -113,7 +114,7 @@ def animate(frames):
     print(frames)
     global positions, angles, t, num_frames_av_angles
     
-    new_positions, new_angles = positions, angles #update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
     # Store the new angles in the num_frames_av_angles array
     average_angles2.append(average_angle(new_angles))
