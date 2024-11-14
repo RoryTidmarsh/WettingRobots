@@ -1,7 +1,0 @@
-Size of box (L): 10.0
-Density (rho): 0.7
-Number of particles (N): 70
-Interaction radius (r0): 1.0
-Noise/randomness (eta): 0.15
-Max number of neighbours: 70
-Total number of steps: 35 
