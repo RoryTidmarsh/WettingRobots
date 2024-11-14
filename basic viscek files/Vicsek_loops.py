@@ -74,10 +74,10 @@ def update(positions, angles):
     # t+=1
     # average_angles[t+1] = np.sum(new_angles)
     return new_positions, new_angles
-
+step = 0
 def animate(frames):
     print(frames)
-    global positions, angles, t, num_frames_av_angles, hist
+    global positions, angles, t, num_frames_av_angles, hist, step
     
     new_positions, new_angles = update(positions, angles)
     
@@ -97,7 +97,9 @@ def animate(frames):
     # Update global variables
     positions = new_positions
     angles = new_angles
-    np.savez_compressed(f'npzfiles/Viscek_Simulation_{frames}.npz', positions=positions, angles=angles, dtype = np.float16)
+
+    step +=1
+    np.savez_compressed(f'npzfiles/Viscek_Simulation_{step}.npz', positions=positions, angles=angles, dtype = np.float16)
 
     # Update the quiver plot
     qv.set_offsets(positions)
