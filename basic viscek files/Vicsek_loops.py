@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numba
+import os
 # parameters
 L = 10.0 # size of box
 rho = 0.7 # density
@@ -18,6 +19,7 @@ max_num_neighbours = N # it could be less...
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) # from 0 to 2pi rad
 
+savedir = "npzfiles/"
 
 ### Alignment over time
 av_frames_angles = 10
@@ -34,6 +36,30 @@ average_angles = [average_angle(positions)]
 bins = int(L/(r0/2))
 hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
+def delete_files_in_directory(directory_path):
+   try:
+     files = os.listdir(directory_path)
+     for file in files:
+       file_path = os.path.join(directory_path, file)
+       if os.path.isfile(file_path):
+         os.remove(file_path)
+     print("All files deleted successfully.")
+   except OSError:
+     print("Error occurred while deleting files.")
+delete_files_in_directory(savedir)
+# Function to output parameters to a file
+def output_parameters(filename=f'{savedir}simulation_parameters.txt'):
+    with open(filename, 'w') as f:
+        f.write(f"Size of box (L): {L}\n")
+        f.write(f"Density (rho): {rho}\n")
+        f.write(f"Number of particles (N): {N}\n")
+        f.write(f"Interaction radius (r0): {r0}\n")
+        # f.write(f"Time step (deltat): {deltat}\n")
+        # f.write(f"Velocity (v0): {v0}\n")
+        # f.write(f"Number of iterations: {iterations}\n")
+        f.write(f"Noise/randomness (eta): {eta}\n")
+        f.write(f"Max number of neighbours: {max_num_neighbours}\n")
+        f.write(f"Total number of steps: {step} \n")
 @numba.njit
 def update(positions, angles):
     # empty arrays to hold updated positions and angles
@@ -99,7 +125,7 @@ def animate(frames):
     angles = new_angles
 
     step +=1
-    np.savez_compressed(f'npzfiles/Viscek_Simulation_{step}.npz', positions=positions, angles=angles, dtype = np.float16)
+    np.savez_compressed(f'{savedir}Viscek_Simulation_{step}.npz', positions=positions, angles=angles, dtype = np.float16)
 
     # Update the quiver plot
     qv.set_offsets(positions)
@@ -111,6 +137,8 @@ qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), a
 ax.grid()
 ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
 plt.show()
+
+output_parameters()
 
 # fig, ax2 = plt.subplots()
 # times = np.arange(0,len(average_angles))*av_frames_angles
