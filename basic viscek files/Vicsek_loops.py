@@ -26,12 +26,12 @@ num_frames_av_angles2 = np.empty(av_frames_angles)
 t = 0
 @numba.njit
 def average_angle(new_angles):
-    return np.angle(np.sum(np.exp(new_angles*1.0j)))
+    return np.angle(np.sum(np.exp(new_angles * 1.0j)))
+
 average_angles = [average_angle(positions)]
-average_angles2 = [np.mean(positions)]
 
 ###Average displacement in a 2D histogram over time
-bins = int(L)
+bins = int(L/(r0/2))
 hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
 @numba.njit
@@ -82,7 +82,7 @@ def animate(frames):
     new_positions, new_angles = update(positions, angles)
     
     # Store the new angles in the num_frames_av_angles array
-    average_angles2.append(average_angle(new_angles))
+    # average_angles2.append(average_angle(new_angles))
     num_frames_av_angles[t] = average_angle(new_angles)
     if t == av_frames_angles - 1:  # Check if we've filled the array
         average_angles.append(average_angle(num_frames_av_angles))
@@ -97,7 +97,8 @@ def animate(frames):
     # Update global variables
     positions = new_positions
     angles = new_angles
-    
+    np.savez_compressed(f'npzfiles/Viscek_Simulation_{frames}.npz', positions=positions, angles=angles, dtype = np.float16)
+
     # Update the quiver plot
     qv.set_offsets(positions)
     qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
@@ -109,24 +110,24 @@ ax.grid()
 ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
 plt.show()
 
-fig, ax2 = plt.subplots()
-times = np.arange(0,len(average_angles))*av_frames_angles
-ax2.plot(times, average_angles, label = "10 frames.")
-ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-ax2.set_xlabel("Time")
-ax2.set_ylabel("Angle (radians)")
-ax2.set_title("Alignment, averaging from different number of frames.")
-ax2.legend()
-plt.show()
+# fig, ax2 = plt.subplots()
+# times = np.arange(0,len(average_angles))*av_frames_angles
+# ax2.plot(times, average_angles, label = "10 frames.")
+# ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
+# ax2.set_xlabel("Time")
+# ax2.set_ylabel("Angle (radians)")
+# ax2.set_title("Alignment, averaging from different number of frames.")
+# ax2.legend()
+# plt.show()
 
-hist_normalised = hist.T/sum(hist)
-# After the animation and histogram calculations
-fig, ax3 = plt.subplots(figsize=(6, 6))
-# Use imshow to display the normalized histogram
-cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='hot', aspect='auto')
-ax3.set_xlabel("X Position")
-ax3.set_ylabel("Y Position")
-ax3.set_title("Normalised 2D Histogram of Particle Positions")
-# Add a colorbar for reference
-fig.colorbar(cax, ax=ax3, label='Density')
-plt.show()
+# hist_normalised = hist.T/sum(hist)
+# # After the animation and histogram calculations
+# fig, ax3 = plt.subplots(figsize=(6, 6))
+# # Use imshow to display the normalized histogram
+# cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='hot', aspect='auto')
+# ax3.set_xlabel("X Position")
+# ax3.set_ylabel("Y Position")
+# ax3.set_title("Normalised 2D Histogram of Particle Positions")
+# # Add a colorbar for reference
+# fig.colorbar(cax, ax=ax3, label='Density')
+# plt.show()
