@@ -12,7 +12,7 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.15 # noise/randomness
+eta = 0#0.3 # noise/randomness
 max_num_neighbours= N
 
 
@@ -20,9 +20,9 @@ max_num_neighbours= N
 wall_x = 5.
 wall_yMin = 1.
 wall_yMax = 9.
-wall_distance = r0 +0.8
+wall_distance = r0/3
 wall_turn = np.deg2rad(110)
-turn_factor = 5.
+turn_factor = 1.
 
 #Defining parameters for a rectangle
 x_min, x_max, y_min, y_max = 4.,6.,4.,6.
@@ -41,7 +41,7 @@ average_angles = [average_angle(positions)]
 # average_angles2 = []
 
 ###Average displacement in a 2D histogram over time
-bins = int(L)
+bins = int(L*5/r0)
 hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
 @numba.njit
@@ -50,7 +50,7 @@ def x_wall_filter(x_pos,y_pos):
 
     Args:
         x_pos (float): x_position of 1 particle
-        y_pos (flaot): y_position of 1 particle
+        y_pos (float): y_position of 1 particle
     Returns:
         distance_to_wall: distance of the particle to the wall
     """
@@ -66,7 +66,7 @@ def x_wall_filter(x_pos,y_pos):
     return distance_to_wall
 
 @numba.njit
-def varying_angle_turn(dist, turn_factor):
+def varying_angle_turn(x_pos, y_pos, turn_factor):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
@@ -77,7 +77,20 @@ def varying_angle_turn(dist, turn_factor):
         turn_angle: angle for the particle to turn
     """
     global wall_distance, wall_turn
-    turn_angle = np.where(dist < wall_distance, wall_turn * np.exp(-turn_factor * dist), 0)
+
+    dist = x_wall_filter(x_pos, y_pos)
+    
+    if (dist<wall_distance)&(y_pos>y_min)&(y_pos<y_max): #close to wall verically 
+        turn_angle =  1/(turn_factor*(x_pos-wall_x))+0j
+
+    elif (dist<wall_distance)&(y_pos>y_max): #close to wall top semi circle
+        turn_angle = 1/(turn_factor*(x_pos - wall_x)) + 1j/(turn_factor*(y_pos - y_max))
+
+    elif (dist<wall_distance)&(y_pos<y_min): #close to wall bottom semi circle
+        turn_angle = 1/(turn_factor*(x_pos - wall_x)) + 1j/(turn_factor*(y_pos - y_min))
+    else:
+        turn_angle = 0
+    # turn_angle = np.where(dist < wall_distance, wall_turn * np.exp(-turn_factor * dist), 0)
     return turn_angle
 
 def plot_x_wall_boundary(ax, wall_color = "blue"):
@@ -154,24 +167,27 @@ def update(positions, angles, func):
         distance_to_wall = func(x_pos, y_pos) 
         # if there are neighbours, calculate average angle and noise/randomness       
         # if neighbour_angles:
-        wall_turn = varying_angle_turn(dist=distance_to_wall,turn_factor=turn_factor)
+        wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         if count_neigh > 0:
-            average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
+            average_angle = np.sum(np.exp(neigh_angles[:count_neigh])*1.0j)
+            new_complex = average_angle + wall_turn
+            # average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
             
-            if angles[i] <= 0:
-                new_angles[i] = average_angle + wall_turn + noise
-            else:
-                new_angles[i] = average_angle + wall_turn + noise
+            # if angles[i] <= 0:
+            #     new_angles[i] = average_angle + wall_turn + noise
+            # else:
+            #     new_angles[i] = average_angle + wall_turn + noise
             
         else:
-            # if no neighbours, keep current angle unless close to wall
-            if angles[i] <= 0:
-                new_angles[i] = angles[i] - wall_turn + noise
-            else:
-                new_angles[i] = angles[i] + wall_turn + noise
-            # Make the particle turn around based on the wall_turn parameter
-            
+            new_complex = np.exp(angles[i]*1j) + wall_turn
+            # # if no neighbours, keep current angle unless close to wall
+            # if angles[i] <= 0:
+            #     new_angles[i] = angles[i] - wall_turn + noise
+            # else:
+            #     new_angles[i] = angles[i] + wall_turn + noise
+            # # Make the particle turn around based on the wall_turn parameter
+        new_angles[i] = noise + np.angle(new_complex)
         
         # update position based on new angle
         # new position from speed and direction   
@@ -234,7 +250,7 @@ ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha
 ax2.grid()
 # plt.show()
 
-hist_normalised = hist.T#/sum(hist)
+hist_normalised = hist.T/sum(hist)
 # After the animation and histogram calculations
 fig, ax3 = plt.subplots(figsize=(6, 6))
 # Use imshow to display the normalized histogram
@@ -242,7 +258,8 @@ cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rai
 ax3 = plot_x_wall_boundary(ax3, "red")
 ax3.set_xlabel("X Position")
 ax3.set_ylabel("Y Position")
-ax3.set_title("Normalised 2D Histogram of Particle Positions")
+ax3.set_title(f"2D Histogram of Particle Positions over {len(times)*10} timesteps.")
+ax3.legend()
 # Add a colorbar for reference
 fig.colorbar(cax, ax=ax3, label='Density')
 plt.show()

@@ -1,1 +1,1 @@
-s.append(np.angle(np.sum(np.exp(new_angles*1.0j))))
+    print(i)

@@ -1,5 +1,2 @@
-### AL ###
-#Template for AL projects for Dynamics 365 Business Central
-#folder with created figures in so I don't have to move them every time
-figures/
 npzfiles/
+figures/
