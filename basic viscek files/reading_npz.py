@@ -20,6 +20,7 @@ for filename in filenames:
     loaded_angles.append( data["angles"])
 loaded_positions = np.array(loaded_positions)
 loaded_angles = np.array(loaded_angles)
+print(loaded_angles[0].dtype)
 
 def read_summary_file(filepath):
     summary_data = {}

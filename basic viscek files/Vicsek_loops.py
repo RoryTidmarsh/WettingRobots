@@ -125,7 +125,7 @@ def animate(frames):
     angles = new_angles
 
     step +=1
-    np.savez_compressed(f'{savedir}Viscek_Simulation_{step}.npz', positions=positions, angles=angles, dtype = np.float16)
+    np.savez_compressed(f'{savedir}Viscek_Simulation_{step}.npz', positions=np.array(positions, dtype = np.float16), angles=np.array(angles, dtype = np.float16))
 
     # Update the quiver plot
     qv.set_offsets(positions)
