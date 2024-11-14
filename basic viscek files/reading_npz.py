@@ -81,23 +81,42 @@ def histogram2D(loaded_positions, plot= None):
     # Add a colorbar for reference
     fig.colorbar(cax, ax=ax, label='Density')
     return ax
-def alignment(loaded_angles, ax=None):
-    steps = int(summary_values["Total number of steps"])
-    av_angles = np.empty(steps)
-    time = np.arange(steps)
-    for i in range(steps):
-        av_angles[i] = np.angle(np.sum(np.exp(loaded_angles[i]*1j)))
+
+def average_angle(new_angles):
+    return np.angle(np.sum(np.exp(new_angles * 1.0j)))
+
+def alignment(loaded_angles, av_frames=10, ax=None):
+    # Calculate the number of frames
+    num_angles = len(loaded_angles)
     
-    if ax ==None:
-        fig,ax = plt.subplots()
-    ax.plot(time,av_angles)
+    # Calculate the number of averages we can compute
+    num_averages = num_angles // av_frames
+    
+    # Initialize an array to hold the average angles
+    average_angles = np.zeros(num_averages)
+    
+    # Compute the average angles
+    for i in range(num_averages):
+        start_index = i * av_frames
+        end_index = start_index + av_frames
+        average_angles[i] = average_angle(loaded_angles[start_index:end_index])
+    
+    # Create time array for plotting
+    time = np.arange(num_averages) * av_frames
+    
+    # Plot the average angles
+    if ax is None:
+        fig, ax = plt.subplots()
+    
+    ax.plot(time, average_angles)
     ax.set_xlabel("Number of steps")
     ax.set_ylabel("Angle (radians)")
     ax.set_title("Alignment of the System")
+    
     return ax
 
 
 fig,ax = plt.subplots(figsize = (12,6), ncols = 2)
 ax[0] = histogram2D(loaded_positions=loaded_positions, plot= (fig,ax[0]))
-ax[1] = alignment(loaded_angles=loaded_angles, ax= ax[1])
+ax[1] = alignment(loaded_angles=loaded_angles, av_frames=5, ax= ax[1])
 plt.show()
