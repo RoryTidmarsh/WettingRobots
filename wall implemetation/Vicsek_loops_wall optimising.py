@@ -22,7 +22,7 @@ wall_yMin = 1.
 wall_yMax = 9.
 wall_distance = r0/3
 wall_turn = np.deg2rad(110)
-turn_factor = 1.
+turn_factor = 0.2
 
 #Defining parameters for a rectangle
 x_min, x_max, y_min, y_max = 4.,6.,4.,6.
@@ -74,24 +74,28 @@ def varying_angle_turn(x_pos, y_pos, turn_factor):
         turn_factor (float): how quickly the particle should turn when approaching the wall
 
     Returns:
-        turn_angle: angle for the particle to turn
+        complex_turn: complex number representing the angle
     """
-    global wall_distance, wall_turn
-
-    dist = x_wall_filter(x_pos, y_pos)
+    x_dist = x_pos- wall_x
     
-    if (dist<wall_distance)&(y_pos>y_min)&(y_pos<y_max): #close to wall verically 
-        turn_angle =  1/(turn_factor*(x_pos-wall_x))+0j
+    dist = x_wall_filter(x_pos, y_pos)
+    if dist < wall_distance:
+        if wall_yMin <= y_pos <= wall_yMax:
+            y_dist = 0 # Turn off any interaction in y direction
+            
+        elif wall_yMin > y_pos:
+            beta = 1
+            y_dist =  y_pos - wall_yMin
+        elif wall_yMax < y_pos:
+            y_dist = y_pos - wall_yMax
 
-    elif (dist<wall_distance)&(y_pos>y_max): #close to wall top semi circle
-        turn_angle = 1/(turn_factor*(x_pos - wall_x)) + 1j/(turn_factor*(y_pos - y_max))
-
-    elif (dist<wall_distance)&(y_pos<y_min): #close to wall bottom semi circle
-        turn_angle = 1/(turn_factor*(x_pos - wall_x)) + 1j/(turn_factor*(y_pos - y_min))
+        r_hat = (x_dist +y_dist*1j)/(x_dist**2 +y_dist**2)
+    
+        #complex_turn = alpha/(turn_factor*dist*r_hat.real) +beta/(turn_factor*r_hat.imag)*1.0j
+        complex_turn = (turn_factor/dist)*r_hat
     else:
-        turn_angle = 0
-    # turn_angle = np.where(dist < wall_distance, wall_turn * np.exp(-turn_factor * dist), 0)
-    return turn_angle
+        complex_turn = 0
+    return complex_turn
 
 def plot_x_wall_boundary(ax, wall_color = "blue"):
     """plots the boundary based on the initial dimensions of the wall set.
@@ -164,13 +168,13 @@ def update(positions, angles, func):
         x_pos = positions[i,0]
         y_pos = positions[i,1]
          
-        distance_to_wall = func(x_pos, y_pos) 
+        # distance_to_wall = func(x_pos, y_pos) 
         # if there are neighbours, calculate average angle and noise/randomness       
         # if neighbour_angles:
         wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         if count_neigh > 0:
-            average_angle = np.sum(np.exp(neigh_angles[:count_neigh])*1.0j)
+            average_angle = np.mean(np.exp(neigh_angles[:count_neigh])*1.0j)
             new_complex = average_angle + wall_turn
             # average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
             
@@ -236,30 +240,30 @@ ax.legend(loc = "upper right")
 # ani.save(f'code/wall implemetation/figures/Vicek_varying_wall_turn_p={rho:.2f}.gif', writer='imagemagick', fps=30)
 plt.show()
 
-fig, ax2 = plt.subplots()
-times = np.arange(0,len(average_angles))*av_frames_angles
-ax2.plot(times, average_angles, label = "10 frame average")
-# ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-ax2.set_xlabel("Time")
-ax2.set_ylabel("Angle (radians)")
-ax2.set_title("Alignment, averaging from different number of frames.")
-ax2.legend(loc = "upper left")
+# fig, ax2 = plt.subplots()
+# times = np.arange(0,len(average_angles))*av_frames_angles
+# ax2.plot(times, average_angles, label = "10 frame average")
+# # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
+# ax2.set_xlabel("Time")
+# ax2.set_ylabel("Angle (radians)")
+# ax2.set_title("Alignment, averaging from different number of frames.")
+# ax2.legend(loc = "upper left")
 
-ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-ax2.grid()
+# ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
+# ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
+# ax2.grid()
+# # plt.show()
+
+# hist_normalised = hist.T/sum(hist)
+# # After the animation and histogram calculations
+# fig, ax3 = plt.subplots(figsize=(6, 6))
+# # Use imshow to display the normalized histogram
+# cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rainbow', aspect='auto')
+# ax3 = plot_x_wall_boundary(ax3, "red")
+# ax3.set_xlabel("X Position")
+# ax3.set_ylabel("Y Position")
+# ax3.set_title(f"2D Histogram of Particle Positions over {len(times)*10} timesteps.")
+# ax3.legend()
+# # Add a colorbar for reference
+# fig.colorbar(cax, ax=ax3, label='Density')
 # plt.show()
-
-hist_normalised = hist.T/sum(hist)
-# After the animation and histogram calculations
-fig, ax3 = plt.subplots(figsize=(6, 6))
-# Use imshow to display the normalized histogram
-cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rainbow', aspect='auto')
-ax3 = plot_x_wall_boundary(ax3, "red")
-ax3.set_xlabel("X Position")
-ax3.set_ylabel("Y Position")
-ax3.set_title(f"2D Histogram of Particle Positions over {len(times)*10} timesteps.")
-ax3.legend()
-# Add a colorbar for reference
-fig.colorbar(cax, ax=ax3, label='Density')
-plt.show()
