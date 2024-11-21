@@ -193,7 +193,6 @@ def animate(frames):
     new_positions, new_angles = update(positions, angles,x_wall_filter)
     
     # Store the new angles in the num_frames_av_angles array
-    # average_angles2.append(average_angle(new_angles))
     num_frames_av_angles[t] = average_angle(new_angles)
     if t == av_frames_angles - 1:  # Check if we've filled the array
         average_angles.append(average_angle(num_frames_av_angles))
@@ -208,10 +207,10 @@ def animate(frames):
     positions = new_positions
     angles = new_angles
 
-    # Update the quiver plot
-    qv.set_offsets(positions)
-    qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-    return qv,
+    # Update the quiver plot   # Comment out up to and inculding the return statement if you do not whish to have the animation
+    # qv.set_offsets(positions)
+    # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
+    # return qv,
  
 fig, ax = plt.subplots(figsize = (6, 6))   
 
@@ -222,23 +221,25 @@ ax.set_title(f"{N} particles, turning near a wall. Varying angle with wall dista
 
 old_pos = positions.copy()
 nbins=64
-bin_edges = np.linspace(0,L,nbins)
-centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0])
-X,Y = np.meshgrid(centres,centres)
+bin_edges = np.linspace(0,L,nbins) 
+centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
+X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
 animate(0)
-dr = positions-old_pos
-_Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))
+dr = positions-old_pos  # Change in posiiton
+_Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
 _Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
-nsteps = 2000
-for i in range(1, nsteps):
+nsteps = 300
+for i in range(1, nsteps):   # Running the simulaiton
     animate(i)
-    dr = positions-old_pos
-    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))
+    dr = positions-old_pos  # Change in position
+    dr = np.where(dr >5.0, dr-10, dr)
+    dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
     _Hx += H
-    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
     _Hy +=H
-    old_pos = positions.copy()
-_Hx/=(nsteps)
+    old_pos = positions.copy()  # Redefining the old positions
+_Hx/=(nsteps) # sNormailising
 _Hy/=(nsteps)
 
 print(X.shape,_Hx.shape)
