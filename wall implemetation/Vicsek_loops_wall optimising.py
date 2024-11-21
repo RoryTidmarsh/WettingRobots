@@ -153,8 +153,6 @@ def update(positions, angles, func):
     
     # loop over all particles
     for i in range(N):
-        # list of angles of neighbouring particles
-        # neighbour_angles = []
         count_neigh = 0
         neigh_angles = np.empty(max_num_neighbours)
 
@@ -163,41 +161,27 @@ def update(positions, angles, func):
             distance = np.linalg.norm(positions[i] - positions[j])
             # if within interaction radius add angle to list
             if (distance < r0) & (distance != 0):
-                # neighbour_angles[].append(angles[j])
                 neigh_angles[count_neigh] = angles[j]
                 count_neigh += 1
         x_pos = positions[i,0]
         y_pos = positions[i,1]
-         
-        # distance_to_wall = func(x_pos, y_pos) 
-        # if there are neighbours, calculate average angle and noise/randomness       
-        # if neighbour_angles:
+          
+        # Calculate the angle to turn due to the wall
         wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
+        # if there are neighbours, calculate average angle and noise/randomness       
         if count_neigh > 0:
             average_angle = np.mean(np.exp(neigh_angles[:count_neigh]*1.0j))
             new_complex = average_angle + wall_turn
-            # average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
-            
-            # if angles[i] <= 0:
-            #     new_angles[i] = average_angle + wall_turn + noise
-            # else:
-            #     new_angles[i] = average_angle + wall_turn + noise
             
         else:
             new_complex = np.exp(angles[i]*1j) + wall_turn
-            # # if no neighbours, keep current angle unless close to wall
-            # if angles[i] <= 0:
-            #     new_angles[i] = angles[i] - wall_turn + noise
-            # else:
-            #     new_angles[i] = angles[i] + wall_turn + noise
-            # # Make the particle turn around based on the wall_turn parameter
+            
         new_angles[i] = noise + np.angle(new_complex)
         
-        # update position based on new angle
         # new position from speed and direction   
         new_positions[i] = positions[i] + v0 * np.array([np.cos(new_angles[i]), np.sin(new_angles[i])]) * deltat
-        # boundary conditions of bo
+        # boundary conditions of box
         new_positions[i] %= L
 
     return new_positions, new_angles
@@ -234,7 +218,7 @@ fig, ax = plt.subplots(figsize = (6, 6))
 ax = plot_x_wall_boundary(ax)
 ax.set_title(f"{N} particles, turning near a wall. Varying angle with wall distance.")
 
-qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
+# qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 
 old_pos = positions.copy()
 nbins=64
