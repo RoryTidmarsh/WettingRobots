@@ -12,7 +12,7 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0#0.3 # noise/randomness
+eta = 0.2#0.3 # noise/randomness
 max_num_neighbours= N
 
 
@@ -150,12 +150,13 @@ def update(positions, angles, func):
     # empty arrays to hold updated positions and angles
     new_positions = np.empty_like(positions)
     new_angles = np.empty_like(angles)
-    neigh_angles = np.empty(max_num_neighbours)
+    
     # loop over all particles
     for i in range(N):
         # list of angles of neighbouring particles
         # neighbour_angles = []
         count_neigh = 0
+        neigh_angles = np.empty(max_num_neighbours)
 
         # distance to other particles
         for j in range(N):
@@ -174,7 +175,7 @@ def update(positions, angles, func):
         wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         if count_neigh > 0:
-            average_angle = np.mean(np.exp(neigh_angles[:count_neigh])*1.0j)
+            average_angle = np.mean(np.exp(neigh_angles[:count_neigh]*1.0j))
             new_complex = average_angle + wall_turn
             # average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
             
@@ -235,8 +236,32 @@ ax.set_title(f"{N} particles, turning near a wall. Varying angle with wall dista
 
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 
-ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
-ax.legend(loc = "upper right")
+old_pos = positions.copy()
+nbins=64
+bin_edges = np.linspace(0,L,nbins)
+centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0])
+X,Y = np.meshgrid(centres,centres)
+animate(0)
+dr = positions-old_pos
+_Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))
+_Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+nsteps = 2000
+for i in range(1, nsteps):
+    animate(i)
+    dr = positions-old_pos
+    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))
+    _Hx += H
+    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+    _Hy +=H
+    old_pos = positions.copy()
+_Hx/=(nsteps)
+_Hy/=(nsteps)
+
+print(X.shape,_Hx.shape)
+plt.streamplot(X,Y,_Hx,_Hy)
+
+# ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
+# ax.legend(loc = "upper right")
 # ani.save(f'code/wall implemetation/figures/Vicek_varying_wall_turn_p={rho:.2f}.gif', writer='imagemagick', fps=30)
 plt.show()
 
