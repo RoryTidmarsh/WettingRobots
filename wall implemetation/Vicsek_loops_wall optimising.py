@@ -4,22 +4,22 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 import numba
 # parameters
-L = 10.0 # size of box
-rho = 3 # density
+L = 64 # size of box
+rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
 deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.05 # noise/randomness
+eta = 0.1 # noise/randomness
 max_num_neighbours= N
 
 
 #Defining parameters for a wall only in the x direction.
-wall_x = 5.
-wall_yMin = 1.
-wall_yMax = 9.
+wall_x = L/2
+wall_yMin = L/2 - L/4
+wall_yMax = L/2 + L/4
 wall_distance = r0/3
 wall_turn = np.deg2rad(110)
 turn_factor = 0.2
@@ -268,9 +268,9 @@ ax = plot_x_wall_boundary(ax)
 ax.set_title(f"Viscek {N} particles, eta = {eta} .")
 
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
+ani = FuncAnimation(fig, animate, frames = range(1, int(iterations*5)), interval = 5, blit = True)
 ax.legend(loc = "upper right")
-# ani.save(f'code/wall implemetation/figures/Vicek_varying_wall_turn_p={rho:.2f}.gif', writer='imagemagick', fps=30)
+ani.save(f'figures/Vicek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 plt.show()
 
 # #### STREAM PLOT ##### (currently works on a for loop without the animation)
