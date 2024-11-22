@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
  
  
-L = 10.0
+L = 64.0
 rho = 1.0
 N = int(rho*L**2)
 print(" N",N)
