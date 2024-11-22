@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numba
 # parameters
-L = 256.0 # size of box
+L = 256.0/4 # size of box
 rho = 0.5 # density
 N = int(rho * L**2) # number of particles
 print("the number  of particles is ", N)
@@ -24,6 +24,7 @@ av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
 num_frames_av_angles2 = np.empty(av_frames_angles)
 t = 0
+average_angles = []
 
 # cell list
 cell_size = 1.*r0
@@ -36,7 +37,7 @@ def get_cell_index(pos, cell_size, num_cells):
     return int(pos[0] // cell_size) % num_cells, int(pos[1] // cell_size) % num_cells
 # 
 @numba.njit(parallel=True)
-def initialize_cells(positions, cell_size, num_cells, max_particles_per_cell):
+def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
     # Create cell arrays
     cells = np.full((num_cells, num_cells, max_particles_per_cell), -1, dtype=np.int32)  # -1 means empty
     cell_counts = np.zeros((num_cells, num_cells), dtype=np.int32)
@@ -53,8 +54,6 @@ def initialize_cells(positions, cell_size, num_cells, max_particles_per_cell):
 @numba.njit
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))
-average_angles = []
-average_angles2 = []
 
 @numba.njit(parallel=True)
 def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
@@ -64,7 +63,7 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
     
     
     # Initialize cell lists
-    cells, cell_counts = initialize_cells(positions, cell_size, num_cells, max_particles_per_cell)
+    cells, cell_counts = initialise_cells(positions, cell_size, num_cells, max_particles_per_cell)
 
     for i in numba.prange(N):  # Parallelize outer loop
         neigh_angles = np.empty(max_num_neighbours)
@@ -117,7 +116,6 @@ def animate(frames):
     new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
     # Store the new angles in the num_frames_av_angles array
-    average_angles2.append(average_angle(new_angles))
     num_frames_av_angles[t] = average_angle(new_angles)
     if t == av_frames_angles - 1:  # Check if we've filled the array
         average_angles.append(average_angle(num_frames_av_angles))

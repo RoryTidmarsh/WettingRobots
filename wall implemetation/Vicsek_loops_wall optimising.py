@@ -12,7 +12,7 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.15 # noise/randomness
+eta = 0.4 # noise/randomness
 max_num_neighbours= N
 
 
@@ -20,9 +20,9 @@ max_num_neighbours= N
 wall_x = 5.
 wall_yMin = 1.
 wall_yMax = 9.
-wall_distance = r0 +0.8
+wall_distance = r0/3
 wall_turn = np.deg2rad(110)
-turn_factor = 5.
+turn_factor = 0.2
 
 #Defining parameters for a rectangle
 x_min, x_max, y_min, y_max = 4.,6.,4.,6.
@@ -37,8 +37,12 @@ t = 0
 @numba.njit
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))
-average_angles = []
-# average_angles2 = []
+average_angles = [average_angle(positions)]
+
+
+###Average displacement in a 2D histogram over time
+bins = int(L*5/r0)
+hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
 @numba.njit
 def x_wall_filter(x_pos,y_pos):
@@ -46,7 +50,7 @@ def x_wall_filter(x_pos,y_pos):
 
     Args:
         x_pos (float): x_position of 1 particle
-        y_pos (flaot): y_position of 1 particle
+        y_pos (float): y_position of 1 particle
     Returns:
         distance_to_wall: distance of the particle to the wall
     """
@@ -62,7 +66,7 @@ def x_wall_filter(x_pos,y_pos):
     return distance_to_wall
 
 @numba.njit
-def varying_angle_turn(dist, turn_factor):
+def varying_angle_turn(x_pos, y_pos, turn_factor):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
@@ -70,13 +74,30 @@ def varying_angle_turn(dist, turn_factor):
         turn_factor (float): how quickly the particle should turn when approaching the wall
 
     Returns:
-        turn_angle: angle for the particle to turn
+        complex_turn: complex number representing the angle
     """
-    global wall_distance, wall_turn
-    turn_angle = np.where(dist < wall_distance, wall_turn * np.exp(-turn_factor * dist), 0)
-    return turn_angle
+    x_dist = x_pos- wall_x
+    
+    dist = x_wall_filter(x_pos, y_pos)
+    if dist < wall_distance:
+        if wall_yMin <= y_pos <= wall_yMax:
+            y_dist = 0 # Turn off any interaction in y direction
+            
+        elif wall_yMin > y_pos:
+            beta = 1
+            y_dist =  y_pos - wall_yMin
+        elif wall_yMax < y_pos:
+            y_dist = y_pos - wall_yMax
 
-def plot_x_wall_boundary(ax):
+        r_hat = (x_dist +y_dist*1j)/(x_dist**2 +y_dist**2)
+    
+        #complex_turn = alpha/(turn_factor*dist*r_hat.real) +beta/(turn_factor*r_hat.imag)*1.0j
+        complex_turn = (turn_factor/dist)*r_hat
+    else:
+        complex_turn = 0
+    return complex_turn
+
+def plot_x_wall_boundary(ax, wall_color = "blue"):
     """plots the boundary based on the initial dimensions of the wall set.
 
     Args:
@@ -102,7 +123,7 @@ def plot_x_wall_boundary(ax):
     ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
 
     #plot the wall
-    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall")
+    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color)
     return ax
 
 def position_filter(positions, filter_func):
@@ -129,62 +150,49 @@ def update(positions, angles, func):
     # empty arrays to hold updated positions and angles
     new_positions = np.empty_like(positions)
     new_angles = np.empty_like(angles)
-    neigh_angles = np.empty(max_num_neighbours)
+    
     # loop over all particles
     for i in range(N):
-        # list of angles of neighbouring particles
-        # neighbour_angles = []
         count_neigh = 0
+        neigh_angles = np.empty(max_num_neighbours)
 
         # distance to other particles
         for j in range(N):
             distance = np.linalg.norm(positions[i] - positions[j])
             # if within interaction radius add angle to list
             if (distance < r0) & (distance != 0):
-                # neighbour_angles[].append(angles[j])
                 neigh_angles[count_neigh] = angles[j]
                 count_neigh += 1
         x_pos = positions[i,0]
         y_pos = positions[i,1]
-         
-        distance_to_wall = func(x_pos, y_pos) 
-        # if there are neighbours, calculate average angle and noise/randomness       
-        # if neighbour_angles:
-        wall_turn = varying_angle_turn(dist=distance_to_wall,turn_factor=turn_factor)
+          
+        # Calculate the angle to turn due to the wall
+        wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
+        # if there are neighbours, calculate average angle and noise/randomness       
         if count_neigh > 0:
-            average_angle = np.angle(np.sum(np.exp((neigh_angles[:count_neigh])*1.0j)))
-            
-            if angles[i] <= 0:
-                new_angles[i] = average_angle + wall_turn + noise
-            else:
-                new_angles[i] = average_angle + wall_turn + noise
+            average_angle = np.mean(np.exp(neigh_angles[:count_neigh]*1.0j))
+            new_complex = average_angle + wall_turn
             
         else:
-            # if no neighbours, keep current angle unless close to wall
-            if angles[i] <= 0:
-                new_angles[i] = angles[i] - wall_turn + noise
-            else:
-                new_angles[i] = angles[i] + wall_turn + noise
-            # Make the particle turn around based on the wall_turn parameter
+            new_complex = np.exp(angles[i]*1j) + wall_turn
             
+        new_angles[i] = noise + np.angle(new_complex)
         
-        # update position based on new angle
         # new position from speed and direction   
         new_positions[i] = positions[i] + v0 * np.array([np.cos(new_angles[i]), np.sin(new_angles[i])]) * deltat
-        # boundary conditions of bo
+        # boundary conditions of box
         new_positions[i] %= L
 
     return new_positions, new_angles
 
 def animate(frames):
     print(frames)
-    global positions, angles, t, num_frames_av_angles
+    global positions, angles, t, num_frames_av_angles, hist
     
     new_positions, new_angles = update(positions, angles,x_wall_filter)
     
     # Store the new angles in the num_frames_av_angles array
-    # average_angles2.append(average_angle(new_angles))
     num_frames_av_angles[t] = average_angle(new_angles)
     if t == av_frames_angles - 1:  # Check if we've filled the array
         average_angles.append(average_angle(num_frames_av_angles))
@@ -193,37 +201,80 @@ def animate(frames):
     else:
         t += 1  # Increment t
         
+    #Add positions to the 2D histogram
+    hist += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
     # Update global variables
     positions = new_positions
     angles = new_angles
-    
-    # Update the quiver plot
-    qv.set_offsets(positions)
-    qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-    return qv,
+
+    # Update the quiver plot   # Comment out up to and inculding the return statement if you do not whish to have the animation
+    # qv.set_offsets(positions)
+    # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
+    # return qv,
  
 fig, ax = plt.subplots(figsize = (6, 6))   
 
 ax = plot_x_wall_boundary(ax)
-ax.set_title(f"{N} particles, turning near a wall. Varying angle with wall distance.")
+ax.set_title(f"Viscek {N} particles, eta = {eta} .")
 
-qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
+# qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 
-ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
-ax.legend(loc = "upper right")
+old_pos = positions.copy()
+nbins=64
+bin_edges = np.linspace(0,L,nbins) 
+centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
+X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
+animate(0)
+dr = positions-old_pos  # Change in posiiton
+_Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
+_Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+nsteps = 3000
+for i in range(1, nsteps):   # Running the simulaiton
+    animate(i)
+    if i >100:
+        dr = positions-old_pos  # Change in position
+        dr = np.where(dr >5.0, dr-10, dr)
+        dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+        H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
+        _Hx += H
+        H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
+        _Hy +=H
+    old_pos = positions.copy()  # Redefining the old positions
+_Hx/=(nsteps) # sNormailising
+_Hy/=(nsteps)
+
+print(X.shape,_Hx.shape)
+plt.streamplot(X,Y,_Hx,_Hy)
+
+# ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
+# ax.legend(loc = "upper right")
 # ani.save(f'code/wall implemetation/figures/Vicek_varying_wall_turn_p={rho:.2f}.gif', writer='imagemagick', fps=30)
 plt.show()
 
-fig, ax2 = plt.subplots()
-times = np.arange(0,len(average_angles))*av_frames_angles
-ax2.plot(times, average_angles, label = "10 frame average")
-# ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-ax2.set_xlabel("Time")
-ax2.set_ylabel("Angle (radians)")
-ax2.set_title("Alignment, averaging from different number of frames.")
-ax2.legend(loc = "upper left")
+# fig, ax2 = plt.subplots()
+# times = np.arange(0,len(average_angles))*av_frames_angles
+# ax2.plot(times, average_angles, label = "10 frame average")
+# # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
+# ax2.set_xlabel("Time")
+# ax2.set_ylabel("Angle (radians)")
+# ax2.set_title("Alignment, averaging from different number of frames.")
+# ax2.legend(loc = "upper left")
 
-ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-ax2.grid()
-plt.show()
+# ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
+# ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
+# ax2.grid()
+# # plt.show()
+
+# hist_normalised = hist.T/sum(hist)
+# # After the animation and histogram calculations
+# fig, ax3 = plt.subplots(figsize=(6, 6))
+# # Use imshow to display the normalized histogram
+# cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rainbow', aspect='auto')
+# ax3 = plot_x_wall_boundary(ax3, "red")
+# ax3.set_xlabel("X Position")
+# ax3.set_ylabel("Y Position")
+# ax3.set_title(f"2D Histogram of Particle Positions over {len(times)*10} timesteps.")
+# ax3.legend()
+# # Add a colorbar for reference
+# fig.colorbar(cax, ax=ax3, label='Density')
+# plt.show()
