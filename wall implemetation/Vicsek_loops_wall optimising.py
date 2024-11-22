@@ -333,19 +333,18 @@ fig.colorbar(cax, ax=ax[1], label='Density')
 
 plt.show()
 
-# fig, ax2 = plt.subplots()
-# times = np.arange(0,len(average_angles))*av_frames_angles
-# ax2.plot(times, average_angles, label = "10 frame average")
-# # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-# ax2.set_xlabel("Time")
-# ax2.set_ylabel("Angle (radians)")
-# ax2.set_title("Alignment, averaging from different number of frames.")
-# ax2.legend(loc = "upper left")
-
-# ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-# ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-# ax2.grid()
-# # plt.show()
+fig, ax2 = plt.subplots()
+times = np.arange(0,len(average_angles))*av_frames_angles
+ax2.plot(times, average_angles, label = "10 frame average")
+# ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
+ax2.set_xlabel("Time")
+ax2.set_ylabel("Angle (radians)")
+ax2.set_title("Alignment, averaging from different number of frames.")
+ax2.legend(loc = "upper left")
+ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Lower angle limit
+ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
+ax2.grid()
+plt.show()
 
 # hist_normalised = hist.T/sum(hist)
 # # After the animation and histogram calculations
