@@ -35,7 +35,7 @@ max_particles_per_cell = int(rho*cell_size**2*10)
 @numba.njit
 def get_cell_index(pos, cell_size, num_cells):
     return int(pos[0] // cell_size) % num_cells, int(pos[1] // cell_size) % num_cells
-# 
+ 
 @numba.njit(parallel=True)
 def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
     # Create cell arrays

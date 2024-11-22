@@ -12,7 +12,7 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.4 # noise/randomness
+eta = 0.05 # noise/randomness
 max_num_neighbours= N
 
 
@@ -31,6 +31,8 @@ x_min, x_max, y_min, y_max = 4.,6.,4.,6.
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
+
+# For alignment Graph
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
 t = 0
@@ -44,6 +46,7 @@ average_angles = [average_angle(positions)]
 bins = int(L*5/r0)
 hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
 
+#### Wall funcitons ####
 @numba.njit
 def x_wall_filter(x_pos,y_pos):
     """Finds the distance of the arrow to the wall.
@@ -143,36 +146,83 @@ def position_filter(positions, filter_func):
             positions[i] = np.random.uniform(0, L, size=(1, 2))
     return positions
 
-positions = position_filter(positions, x_wall_filter)
+positions = position_filter(positions, x_wall_filter) # No particles spawn in turn boundary
+
+#### Cell Searching####
+# cell list
+cell_size = 1.*r0
+lateral_num_cells = int(L/cell_size)
+total_num_cells = lateral_num_cells**2
+max_particles_per_cell = int(rho*cell_size**2*10)
 
 @numba.njit
-def update(positions, angles, func):
-    # empty arrays to hold updated positions and angles
+def get_cell_index(pos, cell_size, num_cells):
+    return int(pos[0] // cell_size) % num_cells, int(pos[1] // cell_size) % num_cells
+ 
+@numba.njit(parallel=True)
+def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
+    # Create cell arrays
+    cells = np.full((num_cells, num_cells, max_particles_per_cell), -1, dtype=np.int32)  # -1 means empty
+    cell_counts = np.zeros((num_cells, num_cells), dtype=np.int32)
+    
+    # Populate cells with particle indices
+    for i in  numba.prange(positions.shape[0]):
+        cell_x, cell_y = get_cell_index(positions[i], cell_size, num_cells)
+        idx = cell_counts[cell_x, cell_y]
+        if idx < max_particles_per_cell:
+            cells[cell_x, cell_y, idx] = i  # Add particle index to cell
+            cell_counts[cell_x, cell_y] += 1  # Update particle count in this cell
+    return cells, cell_counts
+
+
+@numba.njit(parallel=True)
+def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
+    N = positions.shape[0]
     new_positions = np.empty_like(positions)
     new_angles = np.empty_like(angles)
     
-    # loop over all particles
-    for i in range(N):
-        count_neigh = 0
-        neigh_angles = np.empty(max_num_neighbours)
+    
+    # Initialize cell lists
+    cells, cell_counts = initialise_cells(positions, cell_size, num_cells, max_particles_per_cell)
 
-        # distance to other particles
-        for j in range(N):
-            distance = np.linalg.norm(positions[i] - positions[j])
-            # if within interaction radius add angle to list
-            if (distance < r0) & (distance != 0):
-                neigh_angles[count_neigh] = angles[j]
-                count_neigh += 1
+    for i in numba.prange(N):  # Parallelize outer loop
+        neigh_angles = np.empty(max_num_neighbours)
+        count_neigh = 0
+        # neigh_angles.fill(0)  # Reset neighbor angles
+
+        # Get particle's cell, ensuring indices are integers
+        cell_x, cell_y = get_cell_index(positions[i], cell_size, num_cells)
+
+        # Check neighboring cells (3x3 neighborhood)
+        for cell_dx in (-1, 0, 1):
+            for cell_dy in (-1, 0, 1):
+                # Ensure neighbor_x and neighbor_y are integers
+                neighbor_x = int((cell_x + cell_dx) % num_cells)
+                neighbor_y = int((cell_y + cell_dy) % num_cells)
+
+                # Check each particle in the neighboring cell
+                for idx in range(cell_counts[neighbor_x, neighbor_y]):
+                    j = cells[neighbor_x, neighbor_y, idx]
+                    if i != j:  # Avoid self-comparison
+                        # Calculate squared distance for efficiency
+                        dx = positions[i, 0] - positions[j, 0]
+                        dy = positions[i, 1] - positions[j, 1]
+                        distance_sq = dx * dx + dy * dy
+                        if distance_sq < r0 * r0:  # Compare with squared radius
+                            if count_neigh < max_num_neighbours:
+                                neigh_angles[count_neigh] = angles[j]
+                                count_neigh += 1
+
         x_pos = positions[i,0]
         y_pos = positions[i,1]
           
         # Calculate the angle to turn due to the wall
         wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
-        # if there are neighbours, calculate average angle and noise/randomness       
+        # if there are neighbours, calculate average angle      
         if count_neigh > 0:
-            average_angle = np.mean(np.exp(neigh_angles[:count_neigh]*1.0j))
-            new_complex = average_angle + wall_turn
+            average_angle = np.mean(np.exp(neigh_angles[:count_neigh]*1.0j)) #angle expressed as a complex number
+            new_complex = average_angle + wall_turn #wall_turn = 0 if not in boundary
             
         else:
             new_complex = np.exp(angles[i]*1j) + wall_turn
@@ -190,7 +240,7 @@ def animate(frames):
     print(frames)
     global positions, angles, t, num_frames_av_angles, hist
     
-    new_positions, new_angles = update(positions, angles,x_wall_filter)
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
     # Store the new angles in the num_frames_av_angles array
     num_frames_av_angles[t] = average_angle(new_angles)
@@ -204,52 +254,56 @@ def animate(frames):
     #Add positions to the 2D histogram
     hist += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
     # Update global variables
-    positions = new_positions
-    angles = new_angles
+    positions = new_positions.copy()
+    angles = new_angles.copy()
 
-    # Update the quiver plot   # Comment out up to and inculding the return statement if you do not whish to have the animation
-    # qv.set_offsets(positions)
-    # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-    # return qv,
+    ##Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
+    qv.set_offsets(positions)
+    qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
+    return qv,
  
 fig, ax = plt.subplots(figsize = (6, 6))   
 
 ax = plot_x_wall_boundary(ax)
 ax.set_title(f"Viscek {N} particles, eta = {eta} .")
 
-# qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-
-old_pos = positions.copy()
-nbins=64
-bin_edges = np.linspace(0,L,nbins) 
-centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
-X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
-animate(0)
-dr = positions-old_pos  # Change in posiiton
-_Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
-_Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
-nsteps = 3000
-for i in range(1, nsteps):   # Running the simulaiton
-    animate(i)
-    if i >100:
-        dr = positions-old_pos  # Change in position
-        dr = np.where(dr >5.0, dr-10, dr)
-        dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-        H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-        _Hx += H
-        H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-        _Hy +=H
-    old_pos = positions.copy()  # Redefining the old positions
-_Hx/=(nsteps) # sNormailising
-_Hy/=(nsteps)
-
-print(X.shape,_Hx.shape)
-plt.streamplot(X,Y,_Hx,_Hy)
-
-# ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
-# ax.legend(loc = "upper right")
+qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
+ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
+ax.legend(loc = "upper right")
 # ani.save(f'code/wall implemetation/figures/Vicek_varying_wall_turn_p={rho:.2f}.gif', writer='imagemagick', fps=30)
 plt.show()
+
+# #### STREAM PLOT ##### (currently works on a for loop without the animation)
+# fig, ax = plt.subplots(figsize = (6, 6))   
+# ax = plot_x_wall_boundary(ax)
+# ax.set_title(f"Viscek {N} particles, eta = {eta} .")
+# old_pos = positions.copy()
+# nbins=64
+# bin_edges = np.linspace(0,L,nbins) 
+# centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
+# X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
+# animate(0)
+# dr = positions-old_pos  # Change in posiiton
+# _Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
+# _Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+# nsteps = 3000
+# for i in range(1, nsteps):   # Running the simulaiton
+#     animate(i)
+#     if i >100:
+#         dr = positions-old_pos  # Change in position
+#         dr = np.where(dr >5.0, dr-10, dr)
+#         dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+#         H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
+#         _Hx += H
+#         H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
+#         _Hy +=H
+#     old_pos = positions.copy()  # Redefining the old positions
+# _Hx/=(nsteps) # sNormailising
+# _Hy/=(nsteps)
+
+# print(X.shape,_Hx.shape)
+# plt.streamplot(X,Y,_Hx,_Hy)
+# plt.show()
 
 # fig, ax2 = plt.subplots()
 # times = np.arange(0,len(average_angles))*av_frames_angles
