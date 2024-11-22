@@ -12,7 +12,7 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.2#0.3 # noise/randomness
+eta = 0.4 # noise/randomness
 max_num_neighbours= N
 
 
@@ -38,7 +38,7 @@ t = 0
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))
 average_angles = [average_angle(positions)]
-# average_angles2 = []
+
 
 ###Average displacement in a 2D histogram over time
 bins = int(L*5/r0)
@@ -215,7 +215,7 @@ def animate(frames):
 fig, ax = plt.subplots(figsize = (6, 6))   
 
 ax = plot_x_wall_boundary(ax)
-ax.set_title(f"{N} particles, turning near a wall. Varying angle with wall distance.")
+ax.set_title(f"Viscek {N} particles, eta = {eta} .")
 
 # qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 
@@ -228,16 +228,17 @@ animate(0)
 dr = positions-old_pos  # Change in posiiton
 _Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
 _Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
-nsteps = 300
+nsteps = 3000
 for i in range(1, nsteps):   # Running the simulaiton
     animate(i)
-    dr = positions-old_pos  # Change in position
-    dr = np.where(dr >5.0, dr-10, dr)
-    dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-    _Hx += H
-    H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-    _Hy +=H
+    if i >100:
+        dr = positions-old_pos  # Change in position
+        dr = np.where(dr >5.0, dr-10, dr)
+        dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+        H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
+        _Hx += H
+        H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
+        _Hy +=H
     old_pos = positions.copy()  # Redefining the old positions
 _Hx/=(nsteps) # sNormailising
 _Hy/=(nsteps)
