@@ -31,7 +31,7 @@ x_min, x_max, y_min, y_max = 4.,6.,4.,6.
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
-
+step_num = 0
 # For alignment Graph
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
@@ -42,9 +42,20 @@ def average_angle(new_angles):
 average_angles = [average_angle(positions)]
 
 
-###Average displacement in a 2D histogram over time
+###Average position in a 2D histogram over time
 bins = int(L*5/r0)
-hist, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
+hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
+
+### Streamplot setup
+old_pos = positions.copy()
+nbins=64
+bin_edges = np.linspace(0,L,nbins) 
+centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
+X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
+dr = positions-old_pos  # Change _streamin pos_streamiiton
+_Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
+_Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+
 
 #### Wall funcitons ####
 @numba.njit
@@ -100,7 +111,7 @@ def varying_angle_turn(x_pos, y_pos, turn_factor):
         complex_turn = 0
     return complex_turn
 
-def plot_x_wall_boundary(ax, wall_color = "blue"):
+def plot_x_wall(ax, wall_color = "blue", boundary = True):
     """plots the boundary based on the initial dimensions of the wall set.
 
     Args:
@@ -109,21 +120,22 @@ def plot_x_wall_boundary(ax, wall_color = "blue"):
     Returns:
         ax: plot including the wall.
     """
-    # Boundary left and right of the wall within vertical bounds
-    ax.plot([wall_x - wall_distance, wall_x - wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2, label=f'Boundary at {wall_distance:.2f}')
-    ax.plot([wall_x + wall_distance, wall_x + wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2)
-    
-    # Boundary above the wall (top circle segment)
-    theta = np.linspace(0, np.pi, 100)  # For the top part of the wall
-    top_circle_x = wall_x + wall_distance * np.cos(theta)
-    top_circle_y = wall_yMax + wall_distance * np.sin(theta)
-    ax.plot(top_circle_x, top_circle_y, 'b--', lw=2)
-    
-    # Boundary below the wall (bottom circle segment)
-    theta = np.linspace(np.pi, 2 * np.pi, 100)  # For the bottom part of the wall
-    bottom_circle_x = wall_x + wall_distance * np.cos(theta)
-    bottom_circle_y = wall_yMin + wall_distance * np.sin(theta)
-    ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
+    if boundary==True:
+        # Boundary left and right of the wall within vertical bounds
+        ax.plot([wall_x - wall_distance, wall_x - wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2, label=f'Boundary at {wall_distance:.2f}')
+        ax.plot([wall_x + wall_distance, wall_x + wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2)
+        
+        # Boundary above the wall (top circle segment)
+        theta = np.linspace(0, np.pi, 100)  # For the top part of the wall
+        top_circle_x = wall_x + wall_distance * np.cos(theta)
+        top_circle_y = wall_yMax + wall_distance * np.sin(theta)
+        ax.plot(top_circle_x, top_circle_y, 'b--', lw=2)
+        
+        # Boundary below the wall (bottom circle segment)
+        theta = np.linspace(np.pi, 2 * np.pi, 100)  # For the bottom part of the wall
+        bottom_circle_x = wall_x + wall_distance * np.cos(theta)
+        bottom_circle_y = wall_yMin + wall_distance * np.sin(theta)
+        ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
 
     #plot the wall
     ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color)
@@ -238,10 +250,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
 
 def animate(frames):
     print(frames)
-    global positions, angles, t, num_frames_av_angles, hist
+    global positions, angles
     
     new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
+    global t, num_frames_av_angles
     # Store the new angles in the num_frames_av_angles array
     num_frames_av_angles[t] = average_angle(new_angles)
     if t == av_frames_angles - 1:  # Check if we've filled the array
@@ -251,84 +264,85 @@ def animate(frames):
     else:
         t += 1  # Increment t
         
-    #Add positions to the 2D histogram
-    hist += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
+    global hist_pos, step_num
+    #Add positions to the 2D histogram for position
+    hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
+
+    global _Hx_stream, _Hy_stream
+    #Add change in position to the 2D histograms for streamplot
+    dr = new_positions-positions  # Change in position
+    dr = np.where(dr >5.0, dr-10, dr)
+    dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
+    _Hx_stream += H_stream
+    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
+    _Hy_stream +=H_stream
+
+
     # Update global variables
     positions = new_positions.copy()
     angles = new_angles.copy()
+    step_num +=1
 
-    ##Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
-    qv.set_offsets(positions)
-    qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-    return qv,
+    ###Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
+    # qv.set_offsets(positions)
+    # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
+    # return qv,
  
-fig, ax = plt.subplots(figsize = (6, 6))   
+### Showing the animation
+# fig, ax = plt.subplots(figsize = (6, 6))   
+# ax = plot_x_wall(ax, boundary = False)
+# ax.set_title(f"Viscek {N} particles, eta = {eta} .")
+# qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
+# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True)
+# ax.legend(loc = "upper right")
+# # ani.save(f'figures/Vicek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
+# plt.show()
 
-ax = plot_x_wall_boundary(ax)
-ax.set_title(f"Viscek {N} particles, eta = {eta} .")
 
-qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-ani = FuncAnimation(fig, animate, frames = range(1, int(iterations*5)), interval = 5, blit = True)
-ax.legend(loc = "upper right")
-ani.save(f'figures/Vicek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
+wall_colour = "r"
+# #### STREAM PLOT ##### (currently works on a for loop without the animation)
+fig, ax = plt.subplots(figsize = (12, 6), ncols = 2)   
+ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False)
+ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
+
+####Uncomment these next 3 lines to run the simulation without animating
+nsteps = 3000
+for i in range(1, nsteps+1):   # Running the simulaiton
+    animate(i)
+
+## STREAM PLOT
+_Hx_stream/=(step_num) # sNormailising
+_Hy_stream/=(step_num)
+
+# print(X.shape,_Hx_stream.shape)
+ax[0].streamplot(X,Y,_Hx_stream,_Hy_stream)   
+
+
+## 2D HISTOGRAM
+hist_normalised = hist_pos.T/sum(hist_pos)
+# Use imshow to display the normalized histogram
+cax = ax[1].imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='cividis', aspect='auto')
+ax[1] = plot_x_wall(ax[1], wall_color = wall_colour, boundary= False)
+ax[1].set_xlabel("X Position")
+ax[1].set_ylabel("Y Position")
+ax[1].set_title(f"2D Histogram of Particle Positions over {step_num} timesteps.")
+ax[1].legend()
+# Add a colorbar for reference
+fig.colorbar(cax, ax=ax[1], label='Density')
+
 plt.show()
 
-# #### STREAM PLOT ##### (currently works on a for loop without the animation)
-# fig, ax = plt.subplots(figsize = (6, 6))   
-# ax = plot_x_wall_boundary(ax)
-# ax.set_title(f"Viscek {N} particles, eta = {eta} .")
-# old_pos = positions.copy()
-# nbins=64
-# bin_edges = np.linspace(0,L,nbins) 
-# centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
-# X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
-# animate(0)
-# dr = positions-old_pos  # Change in posiiton
-# _Hx,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
-# _Hy,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
-# nsteps = 3000
-# for i in range(1, nsteps):   # Running the simulaiton
-#     animate(i)
-#     if i >100:
-#         dr = positions-old_pos  # Change in position
-#         dr = np.where(dr >5.0, dr-10, dr)
-#         dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-#         H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-#         _Hx += H
-#         H,edgex,edgey = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-#         _Hy +=H
-#     old_pos = positions.copy()  # Redefining the old positions
-# _Hx/=(nsteps) # sNormailising
-# _Hy/=(nsteps)
+fig, ax2 = plt.subplots()
+times = np.arange(0,len(average_angles))*av_frames_angles
+ax2.plot(times, average_angles, label = "10 frame average")
+# ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
+ax2.set_xlabel("Time")
+ax2.set_ylabel("Angle (radians)")
+ax2.set_title("Alignment, averaging from different number of frames.")
+ax2.legend(loc = "upper left")
 
-# print(X.shape,_Hx.shape)
-# plt.streamplot(X,Y,_Hx,_Hy)
-# plt.show()
-
-# fig, ax2 = plt.subplots()
-# times = np.arange(0,len(average_angles))*av_frames_angles
-# ax2.plot(times, average_angles, label = "10 frame average")
-# # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-# ax2.set_xlabel("Time")
-# ax2.set_ylabel("Angle (radians)")
-# ax2.set_title("Alignment, averaging from different number of frames.")
-# ax2.legend(loc = "upper left")
-
-# ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-# ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
-# ax2.grid()
-# # plt.show()
-
-# hist_normalised = hist.T/sum(hist)
-# # After the animation and histogram calculations
-# fig, ax3 = plt.subplots(figsize=(6, 6))
-# # Use imshow to display the normalized histogram
-# cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rainbow', aspect='auto')
-# ax3 = plot_x_wall_boundary(ax3, "red")
-# ax3.set_xlabel("X Position")
-# ax3.set_ylabel("Y Position")
-# ax3.set_title(f"2D Histogram of Particle Positions over {len(times)*10} timesteps.")
-# ax3.legend()
-# # Add a colorbar for reference
-# fig.colorbar(cax, ax=ax3, label='Density')
-# plt.show()
+ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4)
+ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4)
+ax2.grid()
+plt.show()
