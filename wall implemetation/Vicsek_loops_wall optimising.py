@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 import numba
+from pycircular.stats import periodic_mean_std
+
 # parameters
 L = 64 # size of box
 rho = 1 # density
@@ -35,11 +37,15 @@ step_num = 0
 # For alignment Graph
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
+num_frames_std_angles = np.empty(av_frames_angles)
 t = 0
 @numba.njit
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))
-average_angles = [average_angle(positions)]
+
+av_angle, angle_std = periodic_mean_std(angles)
+average_angles = [av_angle]
+std_angles = [angle_std]
 
 
 ###Average position in a 2D histogram over time
@@ -111,7 +117,7 @@ def varying_angle_turn(x_pos, y_pos, turn_factor):
         complex_turn = 0
     return complex_turn
 
-def plot_x_wall(ax, wall_color = "blue", boundary = True):
+def plot_x_wall(ax, wall_color = "blue", boundary = True, walpha = 1):
     """plots the boundary based on the initial dimensions of the wall set.
 
     Args:
@@ -138,7 +144,7 @@ def plot_x_wall(ax, wall_color = "blue", boundary = True):
         ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
 
     #plot the wall
-    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color)
+    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color, alpha = walpha)
     return ax
 
 def position_filter(positions, filter_func):
@@ -254,11 +260,14 @@ def animate(frames):
     
     new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
     
-    global t, num_frames_av_angles
+    global t, num_frames_av_angles, num_frames_std_angles
     # Store the new angles in the num_frames_av_angles array
-    num_frames_av_angles[t] = average_angle(new_angles)
+    num_frames_av_angles[t], num_frames_std_angles[t] = periodic_mean_std(new_angles)
     if t == av_frames_angles - 1:  # Check if we've filled the array
-        average_angles.append(average_angle(num_frames_av_angles))
+        angle_mean, _ = periodic_mean_std(num_frames_av_angles)
+        angle_std, _ = periodic_mean_std(num_frames_std_angles)
+        average_angles.append(angle_mean)
+        std_angles.append(angle_std)
         t = 0  # Reset t
         num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
     else:
@@ -284,7 +293,7 @@ def animate(frames):
     angles = new_angles.copy()
     step_num +=1
 
-    ###Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
+    ##Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
     # qv.set_offsets(positions)
     # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
     # return qv,
@@ -303,11 +312,11 @@ def animate(frames):
 wall_colour = "r"
 # #### STREAM PLOT ##### (currently works on a for loop without the animation)
 fig, ax = plt.subplots(figsize = (12, 6), ncols = 2)   
-ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False)
+ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False, walpha= 0.5)
 ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
 
 ####Uncomment these next 3 lines to run the simulation without animating
-nsteps = 3000
+nsteps = 1000000
 for i in range(1, nsteps+1):   # Running the simulaiton
     animate(i)
 
@@ -323,7 +332,7 @@ ax[0].streamplot(X,Y,_Hx_stream,_Hy_stream)
 hist_normalised = hist_pos.T/sum(hist_pos)
 # Use imshow to display the normalized histogram
 cax = ax[1].imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='cividis', aspect='auto')
-ax[1] = plot_x_wall(ax[1], wall_color = wall_colour, boundary= False)
+ax[1] = plot_x_wall(ax[1], wall_color = '#FF00FF', boundary= False)
 ax[1].set_xlabel("X Position")
 ax[1].set_ylabel("Y Position")
 ax[1].set_title(f"2D Histogram of Particle Positions over {step_num} timesteps.")
@@ -332,15 +341,18 @@ ax[1].legend()
 fig.colorbar(cax, ax=ax[1], label='Density')
 
 plt.show()
-
+average_angles = np.array(average_angles)
+std_angles = np.array(std_angles)
 fig, ax2 = plt.subplots()
 times = np.arange(0,len(average_angles))*av_frames_angles
 ax2.plot(times, average_angles, label = "10 frame average")
+ax2.fill_between(times, average_angles - std_angles, average_angles + std_angles, alpha = 0.3, label = r"$\sigma$ of angles")
 # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
 ax2.set_xlabel("Time")
 ax2.set_ylabel("Angle (radians)")
-ax2.set_title("Alignment, averaging from different number of frames.")
-ax2.legend(loc = "upper left")
+ax2.set_title(f"Average Alignment of {N} Particles, eta = {eta}")
+ax2.set_ylim(-3.22,3.22)
+ax2.legend()
 ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Lower angle limit
 ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
 ax2.grid()
