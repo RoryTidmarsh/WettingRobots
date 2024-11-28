@@ -316,7 +316,7 @@ ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False, walpha= 0.
 ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
 
 ####Uncomment these next 3 lines to run the simulation without animating
-nsteps = 1000000
+nsteps = 100000
 for i in range(1, nsteps+1):   # Running the simulaiton
     animate(i)
 
@@ -357,17 +357,3 @@ ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alp
 ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
 ax2.grid()
 plt.show()
-
-# hist_normalised = hist.T/sum(hist)
-# # After the animation and histogram calculations
-# fig, ax3 = plt.subplots(figsize=(6, 6))
-# # Use imshow to display the normalized histogram
-# cax = ax3.imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='rainbow', aspect='auto')
-# ax3 = plot_x_wall_boundary(ax3, "red")
-# ax3.set_xlabel("X Position")
-# ax3.set_ylabel("Y Position")
-# ax3.set_title(f"2D Histogram of Particle Positions over {len(times)*10} timesteps.")
-# ax3.legend()
-# # Add a colorbar for reference
-# fig.colorbar(cax, ax=ax3, label='Density')
-# plt.show()
