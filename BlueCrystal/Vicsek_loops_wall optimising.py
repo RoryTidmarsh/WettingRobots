@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import matplotlib.patches as patches
+#from matplotlib.animation import FuncAnimation
+#import matplotlib.patches as patches
 import numba
 from pycircular.stats import periodic_mean_std
 
@@ -340,7 +340,7 @@ ax[1].legend()
 # Add a colorbar for reference
 fig.colorbar(cax, ax=ax[1], label='Density')
 fig.savefig(f"figures/Streamplot_Histogram_eta={eta}_rho={rho}_steps={nsteps}.png")
-plt.show()
+# plt.show()
 
 average_angles = np.array(average_angles)
 std_angles = np.array(std_angles)
@@ -358,4 +358,4 @@ ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alp
 ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
 ax2.grid()
 fig.savefig(f"figures/Alginment_eta={eta}_rho={rho}_steps={nsteps}.png")
-plt.show()
+# plt.show()
