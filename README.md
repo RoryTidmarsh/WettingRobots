@@ -1,5 +1,6 @@
 # WettingRobots
- 
+
+## Description 
 "basic viscek files" folder: the original code given by F.Turci, a jupyter notebook of me understanding this code and our break down of the code using 'for' loops.
 
 "wall implementation" folder looks at implementing a wall into the viscek model. It contains:
