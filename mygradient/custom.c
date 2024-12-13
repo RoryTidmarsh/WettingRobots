@@ -159,7 +159,7 @@ void loop()
   else{
     if (mydata->obstacle_collisions==1)
     {
-      set_color(colors[2]);   //Turn orange if previously been in contact with the boundary
+      set_color(colors[3]);   //Turn orange if previously been in contact with the boundary
     }
     set_motors(kilo_turn_left, kilo_turn_right); // Move in a strait line
   }
