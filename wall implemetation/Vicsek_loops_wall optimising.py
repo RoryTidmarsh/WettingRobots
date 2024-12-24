@@ -15,14 +15,14 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.1 # noise/randomness
+eta = 0.05 # noise/randomness
 max_num_neighbours= N
 
 
 #Defining parameters for a wall only in the x direction.
 wall_x = L/2
-wall_yMin = L/2 - L/4
-wall_yMax = L/2 + L/4
+# wall_yMin = L/2 - L/4
+# wall_yMax = L/2 + L/4
 wall_distance = r0/3
 wall_turn = np.deg2rad(110)
 turn_factor = 0.2
@@ -66,7 +66,7 @@ _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],
 
 #### Wall funcitons ####
 @numba.njit
-def x_wall_filter(x_pos,y_pos):
+def x_wall_filter(x_pos,y_pos, wall_yMax, wall_yMin):
     """Finds the distance of the arrow to the wall.
 
     Args:
@@ -87,7 +87,7 @@ def x_wall_filter(x_pos,y_pos):
     return distance_to_wall
 
 @numba.njit
-def varying_angle_turn(x_pos, y_pos, turn_factor):
+def varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
@@ -99,13 +99,12 @@ def varying_angle_turn(x_pos, y_pos, turn_factor):
     """
     x_dist = x_pos- wall_x
     
-    dist = x_wall_filter(x_pos, y_pos)
+    dist = x_wall_filter(x_pos, y_pos, wall_yMax, wall_yMin)
     if dist < wall_distance:
         if wall_yMin <= y_pos <= wall_yMax:
             y_dist = 0 # Turn off any interaction in y direction
             
         elif wall_yMin > y_pos:
-            beta = 1
             y_dist =  y_pos - wall_yMin
         elif wall_yMax < y_pos:
             y_dist = y_pos - wall_yMax
@@ -148,24 +147,24 @@ def plot_x_wall(ax, wall_color = "blue", boundary = True, walpha = 1):
     ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color, alpha = walpha)
     return ax
 
-def position_filter(positions, filter_func):
-    """Adjusts the initial positions so they are no longer within the boundary.
+# def position_filter(positions, filter_func, wall_yMax, wall_yMin):
+#     """Adjusts the initial positions so they are no longer within the boundary.
 
-    Args:
-        positions (numpy array): array of positions
-        filter_func (function): function that calculates the distance to the wall
+#     Args:
+#         positions (numpy array): array of positions
+#         filter_func (function): function that calculates the distance to the wall
 
-    Returns:
-        positions
-    """
-    for i in range(len(positions)):
-        # Check if the particle is too close to the wall
-        while filter_func(positions[i][0], positions[i][1]) <= wall_distance:
-            # Regenerate position until it is far enough from the wall
-            positions[i] = np.random.uniform(0, L, size=(1, 2))
-    return positions
+#     Returns:
+#         positions
+#     """
+#     for i in range(len(positions)):
+#         # Check if the particle is too close to the wall
+#         while filter_func(positions[i][0], positions[i][1], wall_yMax, wall_yMin) <= wall_distance:
+#             # Regenerate position until it is far enough from the wall
+#             positions[i] = np.random.uniform(0, L, size=(1, 2))
+#     return positions
 
-positions = position_filter(positions, x_wall_filter) # No particles spawn in turn boundary
+# positions = position_filter(positions, x_wall_filter, wall_yMax, wall_yMax) # No particles spawn in turn boundary
 
 #### Cell Searching####
 # cell list
@@ -195,7 +194,8 @@ def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
 
 
 @numba.njit(parallel=True)
-def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
+def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_yMax, wall_yMin):
+    
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
     new_angles = np.empty_like(angles)
@@ -236,7 +236,7 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
         y_pos = positions[i,1]
           
         # Calculate the angle to turn due to the wall
-        wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
+        wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         # if there are neighbours, calculate average angle      
         if count_neigh > 0:
@@ -255,11 +255,10 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
 
     return new_positions, new_angles
 
-def animate(frames):
+def animate(frames, wall_yMax, wall_yMin):
     print(frames)
     global positions, angles, step_num
-    
-    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin)
     
     ### NEEDED FOR ANALYSIS FIGURES IN THIS FILE
     # global t, num_frames_av_angles, num_frames_std_angles
@@ -331,7 +330,7 @@ def output_parameters(file_dir):
     Args:
         filedir (str): the directory of the file location 
     """
-    filename = file_dir + 'simulation_parameters.txt'
+    filename = file_dir + '/simulation_parameters.txt'
     with open(filename, 'w') as f:
         f.write(f"Size of box (L): {L}\n")
         f.write(f"Density (rho): {rho}\n")
@@ -348,9 +347,10 @@ def output_parameters(file_dir):
 
 
 ####Uncomment these next 3 lines to run the simulation without animating
-nsteps = 100
+nsteps = 5000
 current_dir = os.path.dirname(__file__)
-for l in np.arange(0,L,2):
+for l_ratio in [1.]:#np.linspace(0.1,1.,10):
+    l = L* l_ratio
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
 
@@ -358,9 +358,11 @@ for l in np.arange(0,L,2):
     savedir = current_dir + "/wall_size_experiment" + f"/wall_{l}"
     delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
+    output_parameters(savedir)
     for i in range(1, nsteps+1):   # Running the simulaiton
-        animate(i)
+        animate(i, wall_yMax, wall_yMin)
 
+        
         np.savez_compressed(f'{savedir}/Viscek_Simulation_{i}.npz', positions=np.array(positions, dtype = np.float16), angles=np.array(angles, dtype = np.float16))
 
 
