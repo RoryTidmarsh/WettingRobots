@@ -349,7 +349,7 @@ def output_parameters(file_dir):
 ####Uncomment these next 3 lines to run the simulation without animating
 nsteps = 5000
 current_dir = os.path.dirname(__file__)
-for l_ratio in [1.]:#np.linspace(0.1,1.,10):
+for l_ratio in np.linspace(0.1,1.,10):
     l = L* l_ratio
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
