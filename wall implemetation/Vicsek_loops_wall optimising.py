@@ -27,9 +27,6 @@ wall_distance = r0/3
 wall_turn = np.deg2rad(110)
 turn_factor = 0.2
 
-#Defining parameters for a rectangle
-x_min, x_max, y_min, y_max = 4.,6.,4.,6.
-
 # initialise positions and angles
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) 
@@ -260,33 +257,33 @@ def animate(frames, wall_yMax, wall_yMin):
     global positions, angles, step_num
     new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin)
     
-    ### NEEDED FOR ANALYSIS FIGURES IN THIS FILE
-    # global t, num_frames_av_angles, num_frames_std_angles
-    # # Store the new angles in the num_frames_av_angles array
-    # num_frames_av_angles[t], num_frames_std_angles[t] = periodic_mean_std(new_angles)
-    # if t == av_frames_angles - 1:  # Check if we've filled the array
-    #     angle_mean, _ = periodic_mean_std(num_frames_av_angles)
-    #     angle_std, _ = periodic_mean_std(num_frames_std_angles)
-    #     average_angles.append(angle_mean)
-    #     std_angles.append(angle_std)
-    #     t = 0  # Reset t
-    #     num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
-    # else:
-    #     t += 1  # Increment t
+    ## NEEDED FOR ANALYSIS FIGURES IN THIS FILE
+    global t, num_frames_av_angles, num_frames_std_angles
+    # Store the new angles in the num_frames_av_angles array
+    num_frames_av_angles[t], num_frames_std_angles[t] = periodic_mean_std(new_angles)
+    if t == av_frames_angles - 1:  # Check if we've filled the array
+        angle_mean, _ = periodic_mean_std(num_frames_av_angles)
+        angle_std, _ = periodic_mean_std(num_frames_std_angles)
+        average_angles.append(angle_mean)
+        std_angles.append(angle_std)
+        t = 0  # Reset t
+        num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
+    else:
+        t += 1  # Increment t
         
-    # global hist_pos, step_num
-    # #Add positions to the 2D histogram for position
-    # hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
+    global hist_pos, step_num
+    #Add positions to the 2D histogram for position
+    hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
 
-    # global _Hx_stream, _Hy_stream
-    # #Add change in position to the 2D histograms for streamplot
-    # dr = new_positions-positions  # Change in position
-    # dr = np.where(dr >5.0, dr-10, dr)
-    # dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-    # H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-    # _Hx_stream += H_stream
-    # H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-    # _Hy_stream +=H_stream
+    global _Hx_stream, _Hy_stream
+    #Add change in position to the 2D histograms for streamplot
+    dr = new_positions-positions  # Change in position
+    dr = np.where(dr >5.0, dr-10, dr)
+    dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
+    _Hx_stream += H_stream
+    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
+    _Hy_stream +=H_stream
 
 
     # Update global variables
@@ -330,7 +327,8 @@ def output_parameters(file_dir):
     Args:
         filedir (str): the directory of the file location 
     """
-    filename = file_dir + '/simulation_parameters.txt'
+    global l
+    filename = file_dir + f'/simulation_parameters_{l}.txt'
     with open(filename, 'w') as f:
         f.write(f"Size of box (L): {L}\n")
         f.write(f"Density (rho): {rho}\n")
@@ -338,32 +336,59 @@ def output_parameters(file_dir):
         f.write(f"Interaction radius (r0): {r0}\n")
         # f.write(f"Time step (deltat): {deltat}\n")
         # f.write(f"Velocity (v0): {v0}\n")
-        # f.write(f"Number of iterations: {iterations}\n")
         f.write(f"Noise/randomness (eta): {eta}\n")
         f.write(f"Max number of neighbours: {max_num_neighbours}\n")
         f.write(f"Total number of steps: {nsteps} \n")
         f.write(f"Wall size (l): {l} \n")
+        f.write(f"Alignment average steps: {av_frames_angles} \n")
 
 
 
 ####Uncomment these next 3 lines to run the simulation without animating
-nsteps = 5000
+nsteps = 2000
 current_dir = os.path.dirname(__file__)
-for l_ratio in np.linspace(0.1,1.,10):
+
+# Loop for each wall length
+for l_ratio in [0.5,0.75, 1]:
+    # Initialising the new wall
     l = L* l_ratio
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
+
+    # initialise positions and angles for the new situation
+    positions = np.random.uniform(0, L, size = (N, 2))
+    angles = np.random.uniform(-np.pi, np.pi, size = N) 
+
+    # Creating the inital storage for each plot
+    hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False) #Position histogram
+    _Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
+    _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
+    av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
+    average_angles = [av_angle] # Create arrays witht the initial angles in s
+    std_angles = [angle_std]
 
     # Creating a directory for this wallsize to fall into
     savedir = current_dir + "/wall_size_experiment" + f"/wall_{l}"
     delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
-    for i in range(1, nsteps+1):   # Running the simulaiton
+
+    # Run the simulation
+    for i in range(1, nsteps+1):
         animate(i, wall_yMax, wall_yMin)
 
-        
-        np.savez_compressed(f'{savedir}/Viscek_Simulation_{i}.npz', positions=np.array(positions, dtype = np.float16), angles=np.array(angles, dtype = np.float16))
+    ## Saving into npz floats for later analysis
+    np.savez_compressed(f'{savedir}/histogram_data_{l}.npz', hist=np.array(hist_pos, dtype = np.float16))
+    np.savez_compressed(f'{savedir}/stream_plot_{l}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
+    np.savez_compressed(f'{savedir}/alignment_{l}.npz', angles = average_angles, std = std_angles)
+
+    hist_pos = np.zeros_like(hist_pos)
+    _Hx_stream = np.zeros_like(_Hx_stream)
+    _Hy_stream = np.zeros_like(_Hy_stream)
+    average_angles = []
+    std_angles = []
+    
+    # print("average angles length: ", len(average_angles))
 
 
 
