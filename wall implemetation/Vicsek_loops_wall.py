@@ -168,5 +168,5 @@ qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), a
 
 ani = FuncAnimation(fig, animate, frames = range(1, iterations), interval = 5, blit = True)
 ax.legend()
-ani.save('code/wall implemetation/Vicek_looped_walls.gif', writer='imagemagick', fps=30)
+# ani.save('code/wall implemetation/Vicek_looped_walls.gif', writer='imagemagick', fps=30)
 plt.show()
