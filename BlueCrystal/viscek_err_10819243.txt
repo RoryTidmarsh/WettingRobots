@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/user/home/ou22429/Viscek_python/Vicsek_loops_wall optimising.py", line 5, in <module>
-    import numba
-ModuleNotFoundError: No module named 'numba'
