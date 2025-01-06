@@ -4,9 +4,10 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 import numba
 from pycircular.stats import periodic_mean_std
+import os
 
 # parameters
-L = 64 # size of box
+L = 128 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
@@ -14,20 +15,17 @@ deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 400 # animation frames
-eta = 0.1 # noise/randomness
-max_num_neighbours= N
+eta = 0.1  # noise/randomness
+max_num_neighbours= 100
 
 
 #Defining parameters for a wall only in the x direction.
 wall_x = L/2
-wall_yMin = L/2 - L/4
-wall_yMax = L/2 + L/4
+wall_yMin = 0#L/2 - L/4
+wall_yMax = L#L/2 + L/4
 wall_distance = r0/3
 wall_turn = np.deg2rad(110)
 turn_factor = 0.2
-
-#Defining parameters for a rectangle
-x_min, x_max, y_min, y_max = 4.,6.,4.,6.
 
 # initialise positions and angles
 positions = np.random.uniform(0, L, size = (N, 2))
@@ -65,7 +63,7 @@ _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],
 
 #### Wall funcitons ####
 @numba.njit
-def x_wall_filter(x_pos,y_pos):
+def x_wall_filter(x_pos,y_pos, wall_yMax, wall_yMin):
     """Finds the distance of the arrow to the wall.
 
     Args:
@@ -86,7 +84,7 @@ def x_wall_filter(x_pos,y_pos):
     return distance_to_wall
 
 @numba.njit
-def varying_angle_turn(x_pos, y_pos, turn_factor):
+def varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
@@ -98,13 +96,12 @@ def varying_angle_turn(x_pos, y_pos, turn_factor):
     """
     x_dist = x_pos- wall_x
     
-    dist = x_wall_filter(x_pos, y_pos)
+    dist = x_wall_filter(x_pos, y_pos, wall_yMax, wall_yMin)
     if dist < wall_distance:
         if wall_yMin <= y_pos <= wall_yMax:
             y_dist = 0 # Turn off any interaction in y direction
             
         elif wall_yMin > y_pos:
-            beta = 1
             y_dist =  y_pos - wall_yMin
         elif wall_yMax < y_pos:
             y_dist = y_pos - wall_yMax
@@ -147,25 +144,6 @@ def plot_x_wall(ax, wall_color = "blue", boundary = True, walpha = 1):
     ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color, alpha = walpha)
     return ax
 
-def position_filter(positions, filter_func):
-    """Adjusts the initial positions so they are no longer within the boundary.
-
-    Args:
-        positions (numpy array): array of positions
-        filter_func (function): function that calculates the distance to the wall
-
-    Returns:
-        positions
-    """
-    for i in range(len(positions)):
-        # Check if the particle is too close to the wall
-        while filter_func(positions[i][0], positions[i][1]) <= wall_distance:
-            # Regenerate position until it is far enough from the wall
-            positions[i] = np.random.uniform(0, L, size=(1, 2))
-    return positions
-
-positions = position_filter(positions, x_wall_filter) # No particles spawn in turn boundary
-
 #### Cell Searching####
 # cell list
 cell_size = 1.*r0
@@ -194,7 +172,8 @@ def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
 
 
 @numba.njit(parallel=True)
-def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
+def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_yMax, wall_yMin):
+    
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
     new_angles = np.empty_like(angles)
@@ -235,7 +214,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
         y_pos = positions[i,1]
           
         # Calculate the angle to turn due to the wall
-        wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor)
+        if wall_yMin == wall_yMax:
+            # i.e. there is no wall
+            wall_turn = 0
+        else:
+            wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         # if there are neighbours, calculate average angle      
         if count_neigh > 0:
@@ -254,12 +237,13 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell):
 
     return new_positions, new_angles
 
-def animate(frames):
+def animate(frames, wall_yMax, wall_yMin):
     print(frames)
-    global positions, angles
+    global positions, angles, step_num
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin)
     
-    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell)
-    
+    ## NEEDED FOR ANALYSIS FIGURES IN THIS FILE
+    ## alignment graphs
     global t, num_frames_av_angles, num_frames_std_angles
     # Store the new angles in the num_frames_av_angles array
     num_frames_av_angles[t], num_frames_std_angles[t] = periodic_mean_std(new_angles)
@@ -273,89 +257,176 @@ def animate(frames):
     else:
         t += 1  # Increment t
         
-    global hist_pos, step_num
-    #Add positions to the 2D histogram for position
-    hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
+    # global hist_pos
+    # #Add positions to the 2D histogram for position
+    # hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
 
-    global _Hx_stream, _Hy_stream
-    #Add change in position to the 2D histograms for streamplot
-    dr = new_positions-positions  # Change in position
-    dr = np.where(dr >5.0, dr-10, dr)
-    dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-    _Hx_stream += H_stream
-    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-    _Hy_stream +=H_stream
+    # global _Hx_stream, _Hy_stream
+    # #Add change in position to the 2D histograms for streamplot
+    # dr = new_positions-positions  # Change in position
+    # dr = np.where(dr >5.0, dr-10, dr)
+    # dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
+    # H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
+    # _Hx_stream += H_stream
+    # H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
+    # _Hy_stream +=H_stream
 
 
     # Update global variables
     positions = new_positions.copy()
     angles = new_angles.copy()
     step_num +=1
-
-    ##Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
-    # qv.set_offsets(positions)
-    # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-    # return qv,
+    
+#     #Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
+#     qv.set_offsets(positions)
+#     qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
+#     return qv,
  
-### Showing the animation
-# fig, ax = plt.subplots(figsize = (6, 6))   
+# ## Showing the animation
+# fig, ax = plt.subplots(figsize = (7, 6))   
 # ax = plot_x_wall(ax, boundary = False)
-# ax.set_title(f"Viscek {N} particles, eta = {eta} .")
+# ax.set_title(f"Viscek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 # qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True)
+# # Add a color bar
+# cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
+# cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
+# cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
+# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
 # ax.legend(loc = "upper right")
 # # ani.save(f'figures/Vicek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 # plt.show()
 
+### SAVING DATA AS .npz FILES
+#finding the current working directory
+current_dir = os.getcwd()
+def delete_files_in_directory(directory_path):
+   try:
+     files = os.listdir(directory_path)
+     for file in files:
+       file_path = os.path.join(directory_path, file)
+       if os.path.isfile(file_path):
+         os.remove(file_path)
+     print("All files deleted successfully.")
+   except OSError:
+     print("Error occurred while deleting files.")
 
-wall_colour = "r"
+# Function to output parameters to a file
+def output_parameters(file_dir):
+    """Creates a descriptive file of the data in the directory
+
+    Args:
+        filedir (str): the directory of the file location 
+    """
+    global l
+    filename = file_dir + f'/simulation_parameters_{l}.txt'
+    with open(filename, 'w') as f:
+        f.write(f"Size of box (L): {L}\n")
+        f.write(f"Density (rho): {rho}\n")
+        f.write(f"Number of particles (N): {N}\n")
+        f.write(f"Interaction radius (r0): {r0}\n")
+        # f.write(f"Time step (deltat): {deltat}\n")
+        # f.write(f"Velocity (v0): {v0}\n")
+        f.write(f"Noise/randomness (eta): {eta}\n")
+        f.write(f"Max number of neighbours: {max_num_neighbours}\n")
+        f.write(f"Total number of steps: {nsteps} \n")
+        f.write(f"Wall size (l): {l} \n")
+        f.write(f"Alignment average steps: {av_frames_angles} \n")
+
+
+
+####Uncomment these next lines to run the simulation without animating
+nsteps = 10000
+current_dir = os.path.dirname(__file__)
+
+
+# Loop for each wall length
+for l_ratio in np.linspace(0,1,6):
+    # Initialising the new wall
+    l = L* l_ratio
+    wall_yMin = L/2 - l/2
+    wall_yMax = L/2 + l/2
+
+    # Creating a directory for this wallsize to fall into
+    savedir = current_dir + "/wall_size_experiment" + f"/wall128_{l}"
+    delete_files_in_directory(savedir)
+    os.makedirs(savedir, exist_ok=True)
+    output_parameters(savedir)
+
+    for J in [0,1,2,3,4,5]:
+
+        # initialise positions and angles for the new situation
+        positions = np.random.uniform(0, L, size = (N, 2))
+        angles = np.random.uniform(-np.pi, np.pi, size = N) 
+
+        # Creating the inital storage for each plot
+        # hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False) #Position histogram
+        # _Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
+        # _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
+        av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
+        average_angles = [av_angle] # Create arrays witht the initial angles in s
+        std_angles = [angle_std]
+
+        
+
+    #     # Run the simulation
+        for i in range(1, nsteps+1):
+            animate(i, wall_yMax, wall_yMin)
+
+        ## Saving into npz floats for later analysis
+        # np.savez_compressed(f'{savedir}/histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float16))
+        # np.savez_compressed(f'{savedir}/stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
+        np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
+
+        # hist_pos = np.zeros_like(hist_pos)
+        # _Hx_stream = np.zeros_like(_Hx_stream)
+        # _Hy_stream = np.zeros_like(_Hy_stream)
+        average_angles = []
+        std_angles = []
+
+
+# #### Code below is for in file creation of analysis plots, this can be done when saved using above files.
 # #### STREAM PLOT ##### (currently works on a for loop without the animation)
-fig, ax = plt.subplots(figsize = (12, 6), ncols = 2)   
-ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False, walpha= 0.5)
-ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
+# wall_colour = "r"
+# fig, ax = plt.subplots(figsize = (12, 6), ncols = 2)   
+# ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False, walpha= 0.5)
+# ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
 
-####Uncomment these next 3 lines to run the simulation without animating
-nsteps = 1000
-for i in range(1, nsteps+1):   # Running the simulaiton
-    animate(i)
+# _Hx_stream/=(step_num) # sNormailising
+# _Hy_stream/=(step_num)
 
-## STREAM PLOT
-_Hx_stream/=(step_num) # sNormailising
-_Hy_stream/=(step_num)
-
-# print(X.shape,_Hx_stream.shape)
-ax[0].streamplot(X,Y,_Hx_stream,_Hy_stream)   
+# # print(X.shape,_Hx_stream.shape)
+# ax[0].streamplot(X,Y,_Hx_stream,_Hy_stream)   
 
 
-## 2D HISTOGRAM
-hist_normalised = hist_pos.T/sum(hist_pos)
-# Use imshow to display the normalized histogram
-cax = ax[1].imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='cividis', aspect='auto')
-ax[1] = plot_x_wall(ax[1], wall_color = '#FF00FF', boundary= False)
-ax[1].set_xlabel("X Position")
-ax[1].set_ylabel("Y Position")
-ax[1].set_title(f"2D Histogram of Particle Positions over {step_num} timesteps.")
-ax[1].legend()
-# Add a colorbar for reference
-fig.colorbar(cax, ax=ax[1], label='Density')
-fig.savefig(f"figures/Streamplot_Histogram_eta={eta}_rho={rho}_steps={nsteps}.png")
-plt.show()
+# ## 2D HISTOGRAM
+# hist_normalised = hist_pos.T/sum(hist_pos)
+# # Use imshow to display the normalized histogram
+# cax = ax[1].imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='cividis', aspect='auto')
+# ax[1] = plot_x_wall(ax[1], wall_color = '#FF00FF', boundary= False)
+# ax[1].set_xlabel("X Position")
+# ax[1].set_ylabel("Y Position")
+# ax[1].set_title(f"2D Histogram of Particle Positions over {step_num} timesteps.")
+# ax[1].legend()
+# # Add a colorbar for reference
+# fig.colorbar(cax, ax=ax[1], label='Density')
+# fig.savefig(f"figures/Streamplot_Histogram_eta={eta}_rho={rho}_steps={nsteps}.png")
+# plt.show()
 
-average_angles = np.array(average_angles)
-std_angles = np.array(std_angles)
-fig, ax2 = plt.subplots()
-times = np.arange(0,len(average_angles))*av_frames_angles
-ax2.plot(times, average_angles, label = "10 frame average")
-ax2.fill_between(times, average_angles - std_angles, average_angles + std_angles, alpha = 0.3, label = r"$\sigma$ of angles")
-# ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-ax2.set_xlabel("Time")
-ax2.set_ylabel("Angle (radians)")
-ax2.set_title(f"Average Alignment of {N} Particles, eta = {eta}")
-ax2.set_ylim(-3.22,3.22)
-ax2.legend()
-ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Lower angle limit
-ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
-ax2.grid()
-fig.savefig(f"figures/Alginment_eta={eta}_rho={rho}_steps={nsteps}.png")
-plt.show()
+### Alignment plot
+# average_angles = np.array(average_angles)
+# std_angles = np.array(std_angles)
+# fig, ax2 = plt.subplots()
+# times = np.arange(0,len(average_angles))*av_frames_angles
+# ax2.plot(times, average_angles, label = "10 frame average")
+# ax2.fill_between(times, average_angles - std_angles, average_angles + std_angles, alpha = 0.3, label = r"$\sigma$ of angles")
+# # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
+# ax2.set_xlabel("Time")
+# ax2.set_ylabel("Angle (radians)")
+# ax2.set_title(f"Average Alignment of {N} Particles, eta = {eta}")
+# ax2.set_ylim(-3.22,3.22)
+# ax2.legend()
+# ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Lower angle limit
+# ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
+# ax2.grid()
+# fig.savefig(f"figures/Alginment_eta={eta}_rho={rho}_steps={nsteps}.png")
+# plt.show()

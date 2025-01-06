@@ -2,7 +2,8 @@ import numpy as np
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-dir = "npzfiles"
+from pycircular.stats import periodic_mean_std
+dir = "wall implemetation\wall_size_experiment\wall_32.0"
 filenames = os.listdir(dir)
 summary_file = filenames[0]
 len_dir = len(filenames)

@@ -16,7 +16,7 @@ deltat = 0.5
 factor =0.1
 v0 = r0/deltat*factor
 iterations = 10000
-eta = 0.05
+eta = 0.15
  
  
 pos = np.random.uniform(0,L,size=(N,2))

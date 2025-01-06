@@ -63,5 +63,5 @@ def animate(i):
     return qv,
  
 anim = FuncAnimation(fig,animate,np.arange(1, 100),interval=1, blit=True)
-anim.save('myAnimation.gif', writer='imagemagick', fps=30)
+# anim.save('myAnimation.gif', writer='imagemagick', fps=30)
 plt.show()
