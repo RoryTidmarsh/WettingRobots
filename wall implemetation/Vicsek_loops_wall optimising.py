@@ -21,8 +21,8 @@ max_num_neighbours= 100
 
 #Defining parameters for a wall only in the x direction.
 wall_x = L/2
-wall_yMin = L/2 - L/4
-wall_yMax = L/2 + L/4
+wall_yMin = 0#L/2 - L/4
+wall_yMax = L#L/2 + L/4
 wall_distance = r0/3
 wall_turn = np.deg2rad(110)
 turn_factor = 0.2
@@ -143,25 +143,6 @@ def plot_x_wall(ax, wall_color = "blue", boundary = True, walpha = 1):
     #plot the wall
     ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color, alpha = walpha)
     return ax
-
-# def position_filter(positions, filter_func, wall_yMax, wall_yMin):
-#     """Adjusts the initial positions so they are no longer within the boundary.
-
-#     Args:
-#         positions (numpy array): array of positions
-#         filter_func (function): function that calculates the distance to the wall
-
-#     Returns:
-#         positions
-#     """
-#     for i in range(len(positions)):
-#         # Check if the particle is too close to the wall
-#         while filter_func(positions[i][0], positions[i][1], wall_yMax, wall_yMin) <= wall_distance:
-#             # Regenerate position until it is far enough from the wall
-#             positions[i] = np.random.uniform(0, L, size=(1, 2))
-#     return positions
-
-# positions = position_filter(positions, x_wall_filter, wall_yMax, wall_yMax) # No particles spawn in turn boundary
 
 #### Cell Searching####
 # cell list
@@ -296,12 +277,12 @@ def animate(frames, wall_yMax, wall_yMin):
     angles = new_angles.copy()
     step_num +=1
     
-    # #Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
-    # qv.set_offsets(positions)
-    # qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-    # return qv,
+#     #Update the quiver plot  Comment out up to and inculding the return statement if you do not whish to have the animation
+#     qv.set_offsets(positions)
+#     qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
+#     return qv,
  
-## Showing the animation
+# ## Showing the animation
 # fig, ax = plt.subplots(figsize = (7, 6))   
 # ax = plot_x_wall(ax, boundary = False)
 # ax.set_title(f"Viscek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
@@ -353,7 +334,7 @@ def output_parameters(file_dir):
 
 
 
-# ####Uncomment these next 3 lines to run the simulation without animating
+####Uncomment these next lines to run the simulation without animating
 nsteps = 10000
 current_dir = os.path.dirname(__file__)
 
@@ -371,7 +352,7 @@ for l_ratio in np.linspace(0,1,6):
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
 
-    for J in range(3):
+    for J in [0,1,2,3,4,5]:
 
         # initialise positions and angles for the new situation
         positions = np.random.uniform(0, L, size = (N, 2))
@@ -403,14 +384,13 @@ for l_ratio in np.linspace(0,1,6):
         std_angles = []
 
 
-
+# #### Code below is for in file creation of analysis plots, this can be done when saved using above files.
 # #### STREAM PLOT ##### (currently works on a for loop without the animation)
 # wall_colour = "r"
 # fig, ax = plt.subplots(figsize = (12, 6), ncols = 2)   
 # ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False, walpha= 0.5)
 # ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
 
-# ## STREAM PLOT
 # _Hx_stream/=(step_num) # sNormailising
 # _Hy_stream/=(step_num)
 
@@ -432,6 +412,7 @@ for l_ratio in np.linspace(0,1,6):
 # fig.savefig(f"figures/Streamplot_Histogram_eta={eta}_rho={rho}_steps={nsteps}.png")
 # plt.show()
 
+### Alignment plot
 # average_angles = np.array(average_angles)
 # std_angles = np.array(std_angles)
 # fig, ax2 = plt.subplots()
