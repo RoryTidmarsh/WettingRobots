@@ -52,7 +52,7 @@ hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins=
 
 ### Streamplot setup
 old_pos = positions.copy()
-nbins=64
+nbins=256
 bin_edges = np.linspace(0,L,nbins) 
 centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
 X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
@@ -242,20 +242,20 @@ def animate(frames, wall_yMax, wall_yMin):
     global positions, angles, step_num
     new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin)
     
-    ## NEEDED FOR ANALYSIS FIGURES IN THIS FILE
-    # ## alignment graphs
-    # global t, num_frames_av_angles, num_frames_std_angles
-    # # Store the new angles in the num_frames_av_angles array
-    # num_frames_av_angles[t], num_frames_std_angles[t] = periodic_mean_std(new_angles)
-    # if t == av_frames_angles - 1:  # Check if we've filled the array
-    #     angle_mean, _ = periodic_mean_std(num_frames_av_angles)
-    #     angle_std, _ = periodic_mean_std(num_frames_std_angles)
-    #     average_angles.append(angle_mean)
-    #     std_angles.append(angle_std)
-    #     t = 0  # Reset t
-    #     num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
-    # else:
-    #     t += 1  # Increment t
+    ### NEEDED FOR ANALYSIS FIGURES
+    ## alignment graphs
+    global t, num_frames_av_angles, num_frames_std_angles
+    # Store the new angles in the num_frames_av_angles array
+    num_frames_av_angles[t], num_frames_std_angles[t] = periodic_mean_std(new_angles)
+    if t == av_frames_angles - 1:  # Check if we've filled the array
+        angle_mean, _ = periodic_mean_std(num_frames_av_angles)
+        angle_std, _ = periodic_mean_std(num_frames_std_angles)
+        average_angles.append(angle_mean)
+        std_angles.append(angle_std)
+        t = 0  # Reset t
+        num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
+    else:
+        t += 1  # Increment t
         
     global hist_pos
     #Add positions to the 2D histogram for position
@@ -335,22 +335,26 @@ def output_parameters(file_dir):
 
 
 ####Uncomment these next lines to run the simulation without animating
-nsteps = 10000
+nsteps = 30000
 current_dir = os.path.dirname(__file__)
 
 
 # Loop for each wall length
-for l_ratio in np.linspace(0,1,6):
+for l_ratio in [1.]:#np.linspace(0,1,6)[1::2]: 
+    J=1
     # Initialising the new wall
     l = L* l_ratio
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
 
     # Creating a directory for this wallsize to fall into
-    savedir = current_dir + "/wall_size_experiment" + f"/wall128_{l}"
-    delete_files_in_directory(savedir)
-    os.makedirs(savedir, exist_ok=True)
-    output_parameters(savedir)
+    savedir = current_dir + "/wall_size_experiment" + f"/WALL128_{l}_{nsteps}"
+    # delete_files_in_directory(savedir)
+    # os.makedirs(savedir, exist_ok=True)
+    # output_parameters(savedir)
+    
+    # # Creating multiple iterations to be averaged for the alignment
+    # for J in range(6):
 
     # initialise positions and angles for the new situation
     positions = np.random.uniform(0, L, size = (N, 2))
@@ -360,11 +364,11 @@ for l_ratio in np.linspace(0,1,6):
     hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False) #Position histogram
     _Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
     _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
-    # av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
-    # average_angles = [av_angle] # Create arrays witht the initial angles in s
-    # std_angles = [angle_std]
+    av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
+    average_angles = [av_angle] # Create arrays witht the initial angles in s
+    std_angles = [angle_std]
 
-#     # Run the simulation
+    # Run the simulation
     for i in range(1, nsteps+1):
         animate(i, wall_yMax, wall_yMin)
 
@@ -381,17 +385,18 @@ for l_ratio in np.linspace(0,1,6):
             _Hy_stream = np.zeros_like(_Hy_stream)
 
     ## Saving into npz floats for later analysis
-    np.savez_compressed(f'{savedir}/steady_histogram_data_{l}.npz', hist=np.array(hist_pos, dtype = np.float16))
-    np.savez_compressed(f'{savedir}/transient_histogram_data_{l}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
-    np.savez_compressed(f'{savedir}/steady_stream_plot_{l}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
-    np.savez_compressed(f'{savedir}/transient_stream_plot_{l}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
-    # np.savez_compressed(f'{savedir}/alignment_{l}.npz', angles = average_angles, std = std_angles)
+    np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float16))
+    np.savez_compressed(f'{savedir}/transient_histogram_data_{l}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
+    np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
+    np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
+    np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
 
+    # Reset the data storage arrays
     hist_pos = np.zeros_like(hist_pos)
     _Hx_stream = np.zeros_like(_Hx_stream)
     _Hy_stream = np.zeros_like(_Hy_stream)
-    # average_angles = []
-    # std_angles = []
+    average_angles = []
+    std_angles = []
 
 
 # #### Code below is for in file creation of analysis plots, this can be done when saved using above files.
