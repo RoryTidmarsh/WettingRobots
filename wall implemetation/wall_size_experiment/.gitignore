@@ -1,2 +1,4 @@
 */
-*.npz
+
+# reading_npz.ipynb
+!test128_*/

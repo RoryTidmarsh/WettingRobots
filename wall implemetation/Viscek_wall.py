@@ -1,7 +1,12 @@
+"""
+File that simulates Vicsek model with the walls and outputs all data for analysis plots into .npz files. 
+
+STATUS:
+ - uncomment .npz lines to save. My simulations are saved under the folders beginning with "test128" 
+
+to read the .npz files use analysis.py
+"""
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import matplotlib.patches as patches
 import numba
 from pycircular.stats import periodic_mean_std
 import os
@@ -25,14 +30,15 @@ wall_yMin = 0   #L/2 - L/4
 wall_yMax = L   #L/2 + L/4
 wall_distance = r0
 wall_turn = np.deg2rad(110)
-turn_factor = 1
+turn_factor = 0.2
 
 # initialise positions and angles
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
-step_num = 0
+#### INITIALISATION OF DATA STORAGE ARAYS - for creation of analysis figures ####
 # For alignment Graph
+step_num = 0
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
 num_frames_std_angles = np.empty(av_frames_angles)
@@ -352,10 +358,10 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
     wall_yMax = L/2 + l/2
 
     # Creating a directory for this wallsize to fall into
-    savedir = current_dir + "/wall_size_experiment" + f"/EDIT128_{l}_{nsteps}"
-    # delete_files_in_directory(savedir)
-    # os.makedirs(savedir, exist_ok=True)
-    # output_parameters(savedir)
+    savedir = current_dir + "/wall_size_experiment" + f"/test128_{l}_{nsteps}"
+    delete_files_in_directory(savedir)
+    os.makedirs(savedir, exist_ok=True)
+    output_parameters(savedir)
     
     # # Creating multiple iterations to be averaged for the alignment
     for J in range(6):
@@ -394,14 +400,14 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
                 _Hy_stream = np.zeros_like(_Hy_stream)
 
         ## Saving into npz floats for later analysis
-        np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float16))
-        np.savez_compressed(f'{savedir}/transient_histogram_data_{l}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
-        np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
-        np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
-        np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
+        # np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
+        # np.savez_compressed(f'{savedir}/transient_histogram_data_{l}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
+        # np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
+        # np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
+        # np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
 
-        ## Saving positions and orientations for setup for recreation of the system
-        np.savez_compressed(f'{savedir}/finalstate_{l}_{J}.npz', Positions = positions, Orientation = angles)
+        # ## Saving positions and orientations for setup for recreation of the system
+        # np.savez_compressed(f'{savedir}/finalstate_{l}_{J}.npz', Positions = positions, Orientation = angles)
 
         # Reset the data storage arrays
         hist_pos = np.zeros_like(hist_pos)
@@ -409,51 +415,3 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
         _Hy_stream = np.zeros_like(_Hy_stream)
         average_angles = []
         std_angles = []
-
-
-# #### Code below is for in file creation of analysis plots, this can be done when saved using above files.
-# #### STREAM PLOT ##### (currently works on a for loop without the animation)
-# wall_colour = "r"
-# fig, ax = plt.subplots(figsize = (12, 6), ncols = 2)   
-# ax[0] = plot_x_wall(ax[0], wall_color = wall_colour,boundary = False, walpha= 0.5)
-# ax[0].set_title(f"Viscek {N} particles, eta = {eta} .")
-
-# _Hx_stream/=(step_num) # sNormailising
-# _Hy_stream/=(step_num)
-
-# # print(X.shape,_Hx_stream.shape)
-# ax[0].streamplot(X,Y,_Hx_stream,_Hy_stream)   
-
-
-# ## 2D HISTOGRAM
-# hist_normalised = hist_pos.T/sum(hist_pos)
-# # Use imshow to display the normalised histogram
-# cax = ax[1].imshow(hist_normalised, extent=[0, L, 0, L], origin='lower', cmap='cividis', aspect='auto')
-# ax[1] = plot_x_wall(ax[1], wall_color = '#FF00FF', boundary= False)
-# ax[1].set_xlabel("X Position")
-# ax[1].set_ylabel("Y Position")
-# ax[1].set_title(f"2D Histogram of Particle Positions over {step_num} timesteps.")
-# ax[1].legend()
-# # Add a colorbar for reference
-# fig.colorbar(cax, ax=ax[1], label='Density')
-# fig.savefig(f"figures/Streamplot_Histogram_eta={eta}_rho={rho}_steps={nsteps}.png")
-# plt.show()
-
-### Alignment plot
-# average_angles = np.array(average_angles)
-# std_angles = np.array(std_angles)
-# fig, ax2 = plt.subplots()
-# times = np.arange(0,len(average_angles))*av_frames_angles
-# ax2.plot(times, average_angles, label = "10 frame average")
-# ax2.fill_between(times, average_angles - std_angles, average_angles + std_angles, alpha = 0.3, label = r"$\sigma$ of angles")
-# # ax2.plot(np.arange(len(average_angles2)), average_angles2, label = "1 frame")
-# ax2.set_xlabel("Time")
-# ax2.set_ylabel("Angle (radians)")
-# ax2.set_title(f"Average Alignment of {N} Particles, eta = {eta}")
-# ax2.set_ylim(-3.22,3.22)
-# ax2.legend()
-# ax2.plot([0,times.max()],[-np.pi, -np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Lower angle limit
-# ax2.plot([0,times.max()],[np.pi, np.pi], linestyle = "--", color = "grey", alpha = 0.4) ## Upper angle limit
-# ax2.grid()
-# fig.savefig(f"figures/Alginment_eta={eta}_rho={rho}_steps={nsteps}.png")
-# plt.show()

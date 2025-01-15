@@ -1,0 +1,9 @@
+Size of box (L): 128
+Density (rho): 1
+Number of particles (N): 16384
+Interaction radius (r0): 0.65
+Noise/randomness (eta): 0.1
+Max number of neighbours: 100
+Total number of steps: 10000 
+Wall size (l): 128.0 
+Alignment average steps: 10 
