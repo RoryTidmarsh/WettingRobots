@@ -16,6 +16,9 @@ Directory for Rory Tidmarsh's final year project on wetting robots
         |---`analysis.py`: python file containing the analysis figure creation for the .npz files
         
         |---`finalstate.npz`: final state of the result from the `Vicsek wall animation`
+
+    |---`Vicsek_arc.py`
+    |---`Vicsek_arc_animation.py`: Previous 2 are the equivilent but with a circular arc instead of a wall 
         
  |--`mygradient` (dir): start of kilombo code
 
@@ -24,4 +27,4 @@ Directory for Rory Tidmarsh's final year project on wetting robots
 - `numpy` for numerical computations
 - `matplotlib` for plotting
 - `numba` for speed up
-- `pycicrclar` for angular statistics
+- `pycicrclar` for angular statistics, this requires the `statsmodels`
