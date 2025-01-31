@@ -12,10 +12,10 @@ from pycircular.stats import periodic_mean_std
 import os
 
 # parameters
-L = 128 # size of box
+L = 64 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
-r0 = 0.65 # interaction radius
+r0 = 1.0 # interaction radius
 deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
@@ -46,10 +46,13 @@ t = 0
 @numba.njit
 def average_angle(new_angles):
     return np.angle(np.sum(np.exp(new_angles*1.0j)))    #or just use pycircular module
+def average_orientation(new_angles):
+    return np.absolute(np.sum(np.exp(new_angles*1.0j))/N)
 
 av_angle, angle_std = periodic_mean_std(angles)
 average_angles = [av_angle]
 std_angles = [angle_std]
+average_orientations = [average_orientation(angles)]
 
 
 ###Average position in a 2D histogram over time
@@ -262,6 +265,10 @@ def animate(frames, wall_yMax, wall_yMin):
         num_frames_av_angles = np.empty(av_frames_angles)  # Reinitialize the array
     else:
         t += 1  # Increment t
+
+    # Complex orientation 
+    global average_orientations
+    average_orientations.append(average_orientation(angles))
         
     global hist_pos
     #Add positions to the 2D histogram for position
@@ -358,7 +365,8 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
     wall_yMax = L/2 + l/2
 
     # Creating a directory for this wallsize to fall into
-    savedir = current_dir + "/wall_size_experiment" + f"/test128_{l}_{nsteps}"
+    exp_dir = ["/wall_size_experiment", "/noise_experiment"]
+    savedir = current_dir + exp_dir[1] + f"/noise64_{l}_{nsteps}"
     delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
@@ -376,6 +384,7 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
         _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
         av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
         average_angles = [av_angle] # Create arrays witht the initial angles in s
+        average_orientations = [average_orientation(angles)]
         std_angles = [angle_std]
 
         if nsteps < 3000:
@@ -386,8 +395,7 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
         for i in range(1, nsteps+1):
             animate(i, wall_yMax, wall_yMin)
 
-            # store all the data from the transient phase
-            
+            # store all the data from the transient phase            
             if i==transient_cutoff:
                 transient_hist_pos = hist_pos.copy()
                 transient_Hx_stream = _Hx_stream.copy()
@@ -405,6 +413,7 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
         # np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
         # np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
         # np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
+        np.savez_compressed(f'{savedir}/orientations_{l}_{J}.npz', orientations = average_orientations) 
 
         # ## Saving positions and orientations for setup for recreation of the system
         # np.savez_compressed(f'{savedir}/finalstate_{l}_{J}.npz', Positions = positions, Orientation = angles)
@@ -414,4 +423,5 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
         _Hx_stream = np.zeros_like(_Hx_stream)
         _Hy_stream = np.zeros_like(_Hy_stream)
         average_angles = []
+        average_orientations = []
         std_angles = []
