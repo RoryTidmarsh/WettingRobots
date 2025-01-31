@@ -24,12 +24,13 @@ eta = 0.1  # noise/randomness
 max_num_neighbours= 100
 
 
-# Defining parameters for a wall only in the x direction.
-wall_x = L/2
-wall_yMin = 0   #L/2 - L/4
-wall_yMax = L   #L/2 + L/4
-wall_distance = r0
-wall_turn = np.deg2rad(110)
+# Curved wall parameters
+center_x = L/3  # x-coordinate of circle center
+center_y = L/2  # y-coordinate of circle center
+radius = L/2    # radius of the circle
+arc_angle = np.pi/2  # length of arc in radians (pi/2 = quarter circle)
+start_angle = -arc_angle/2  # starting angle of the arc
+wall_distance = r0  # interaction distance from wall
 turn_factor = 0.2
 
 # initialise positions and angles
@@ -72,86 +73,75 @@ _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],
 
 #### Wall funcitons ####
 @numba.njit
-def x_wall_filter(x_pos,y_pos, wall_yMax, wall_yMin):
-    """Finds the distance of the arrow to the wall.
+@numba.njit
+def point_to_arc_distance(x,y, center_x, center_y, radius, start_angle, arc_angle):
+    """Calculate the distance from a point to an arc.
 
     Args:
-        x_pos (float): x_position of 1 particle
-        y_pos (float): y_position of 1 particle
+        x (float): x coordinate of particle
+        y (float): y coordinate of particle
+        center_x (float): central x point of arc
+        center_y (float): central y point of arc
+        radius (float): radius of arc
+        start_angle (float): angular position of the start of the curve (radians)
+        arc_angle (float): total angle taken for the curve
+
     Returns:
-        distance_to_wall: distance of the particle to the wall
+        dist, r_hat(tuple of floats): dist = distance to the wall, r_hat (comple number) is the unitvector from the arc to the particle
     """
-    if y_pos > wall_yMax:
-        #particle above the wall
-        distance_to_wall = np.sqrt((x_pos-wall_x)**2 + (y_pos-wall_yMax)**2)
-    elif y_pos < wall_yMin:
-        #particle below the wall
-        distance_to_wall = np.sqrt((x_pos-wall_x)**2 + (y_pos-wall_yMin)**2)
-    else:
-        #particle level with the wall
-        distance_to_wall = np.abs(x_pos-wall_x)
-    return distance_to_wall
+
+    # Vector distance to center point
+    dx = x - center_x
+    dy = y - center_y
+
+    # Angle from the center to the point
+    angle_from_center = np.arctan2(dy,dx)
+
+    # Calculating the x,y of the end of the arc
+    end_angle = start_angle + arc_angle
+    end1_x = radius*np.cos(start_angle)
+    end1_y = radius*np.sin(start_angle)
+    end2_x = radius*np.cos(end_angle)
+    end2_y = radius*np.sin(end_angle)
+    # Check the particle is within the range wanted
+    if start_angle <= angle_from_center <= end_angle: 
+        disp = np.sqrt(dx*dx + dy*dy) - radius # radial displacement to the curve
+        r_hat = (np.cos(angle_from_center) + 1j*np.sin(angle_from_center))*np.sign(disp) # direction from curve to point
+        return np.absolute(disp), r_hat
+    
+    elif angle_from_center>= end_angle:    # Angle greater than the end angle
+        # Calculate the distance from end2 to point
+        dx = x - end2_x
+        dy = y - end2_y
+        dist = np.sqrt(dx*dx + dy*dy) # distance from end
+        r_hat = (dx + 1j*dy)/dist # direction to curve
+        return dist, r_hat
+    elif angle_from_center<= start_angle:    # Angle greater than the end angle
+        # Calculate the distance from end2 to point
+        dx = x - end1_x
+        dy = y - end1_y
+        dist = np.sqrt(dx*dx + dy*dy) # distance from end
+        r_hat = (dx + 1j*dy)/dist # direction to curve
+        return dist, r_hat
+
 
 @numba.njit
-def varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin):
+def arc_angle_turn(x_pos, y_pos, turn_factor):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
-        dist (float): distance the particle is to the wall
+        x_pos, y_pos (float): particle positions
         turn_factor (float): how quickly the particle should turn when approaching the wall
 
     Returns:
         complex_turn: complex number representing the angle
     """
-    x_dist = x_pos- wall_x
-    
-    dist = x_wall_filter(x_pos, y_pos, wall_yMax, wall_yMin)
-    if dist < wall_distance:
-        if wall_yMin <= y_pos <= wall_yMax:
-            y_dist = 0 # Turn off any interaction in y direction
-            
-        elif wall_yMin > y_pos:
-            y_dist =  y_pos - wall_yMin
-        elif wall_yMax < y_pos:
-            y_dist = y_pos - wall_yMax
-
-        r_hat = (x_dist +y_dist*1j)/(x_dist**2 +y_dist**2)
-    
-        #complex_turn = alpha/(turn_factor*dist*r_hat.real) +beta/(turn_factor*r_hat.imag)*1.0j
+    dist, r_hat = point_to_arc_distance(x_pos, y_pos, center_x,center_y, radius, start_angle, arc_angle)
+    if dist < wall_distance:    
         complex_turn = (turn_factor/dist)*r_hat
     else:
         complex_turn = 0
     return complex_turn
-
-def plot_x_wall(ax, wall_color = "blue", boundary = True, walpha = 1):
-    """plots the boundary based on the initial dimensions of the wall set.
-
-    Args:
-        ax (matplotlib axis): input axis for the wall to be plotted onto
-
-    Returns:
-        ax: plot including the wall.
-    """
-    if boundary==True:
-        # Boundary left and right of the wall within vertical bounds
-        ax.plot([wall_x - wall_distance, wall_x - wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2, label=f'Boundary at {wall_distance:.2f}')
-        ax.plot([wall_x + wall_distance, wall_x + wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2)
-        
-        # Boundary above the wall (top circle segment)
-        theta = np.linspace(0, np.pi, 100)  # For the top part of the wall
-        top_circle_x = wall_x + wall_distance * np.cos(theta)
-        top_circle_y = wall_yMax + wall_distance * np.sin(theta)
-        ax.plot(top_circle_x, top_circle_y, 'b--', lw=2)
-        
-        # Boundary below the wall (bottom circle segment)
-        theta = np.linspace(np.pi, 2 * np.pi, 100)  # For the bottom part of the wall
-        bottom_circle_x = wall_x + wall_distance * np.cos(theta)
-        bottom_circle_y = wall_yMin + wall_distance * np.sin(theta)
-        ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
-
-    #plot the wall
-    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color, alpha = walpha)
-    return ax
 
 #### Cell Searching####
 # cell list
@@ -223,11 +213,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
         y_pos = positions[i,1]
           
         # Calculate the angle to turn due to the wall
-        if wall_yMin == wall_yMax:
-            # i.e. there is no wall
+        # wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax)
+        if arc_angle ==0:   # no wall case
             wall_turn = 0
         else:
-            wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax)
+            wall_turn = arc_angle_turn(x_pos, y_pos, turn_factor)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         # if there are neighbours, calculate average angle      
         if count_neigh > 0:
