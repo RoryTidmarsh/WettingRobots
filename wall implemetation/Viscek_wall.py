@@ -181,7 +181,7 @@ def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
 
 
 @numba.njit(parallel=True)
-def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_yMax, wall_yMin):
+def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_yMax, wall_yMin,eta = eta):
     
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
@@ -248,8 +248,8 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
 
 def animate(frames, wall_yMax, wall_yMin):
     print(frames)
-    global positions, angles, step_num
-    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin)
+    global positions, angles, step_num,eta
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin,eta=eta)
     
     ### NEEDED FOR ANALYSIS FIGURES
     ## alignment graphs
@@ -357,7 +357,7 @@ current_dir = os.path.dirname(__file__)
 
 
 # # Loop for each wall length
-for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
+for l_ratio in [0.0,1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
     l = L* l_ratio
@@ -367,45 +367,50 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
     # Creating a directory for this wallsize to fall into
     exp_dir = ["/wall_size_experiment", "/noise_experiment"]
     savedir = current_dir + exp_dir[1] + f"/noise64_{l}_{nsteps}"
-    delete_files_in_directory(savedir)
-    os.makedirs(savedir, exist_ok=True)
-    output_parameters(savedir)
+    # delete_files_in_directory(savedir)
+    # os.makedirs(savedir, exist_ok=True)
+    # output_parameters(savedir)
     
+    # # Looping over the noise
+    for eta in [0.05,0.15,0.25,0.35,0.45]:#np.linspace(0.1,0.7, 7):
     # # Creating multiple iterations to be averaged for the alignment
-    for J in range(6):
+        for J in range(3):
 
-        # initialise positions and angles for the new situation
-        positions = np.random.uniform(0, L, size = (N, 2))
-        angles = np.random.uniform(-np.pi, np.pi, size = N) 
+            # initialise positions and angles for the new situation
+            positions = np.random.uniform(0, L, size = (N, 2))
+            angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
-        # Creating the inital storage for each plot
-        hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False) #Position histogram
-        _Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
-        _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
-        av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
-        average_angles = [av_angle] # Create arrays witht the initial angles in s
-        average_orientations = [average_orientation(angles)]
-        std_angles = [angle_std]
+        # # Creating the inital storage for each plot
+        # hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False) #Position histogram
+        # _Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
+        # _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
+        # av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
+        # average_angles = [av_angle] # Create arrays witht the initial angles in s
+        # std_angles = [angle_std]
+            average_orientations = [average_orientation(angles)]
+            
 
-        if nsteps < 3000:
-            transient_cutoff = nsteps
-        else:
-            transient_cutoff = 3000
-        # Run the simulation
-        for i in range(1, nsteps+1):
-            animate(i, wall_yMax, wall_yMin)
+            if nsteps < 3000:
+                transient_cutoff = nsteps
+            else:
+                transient_cutoff = 3000
+            # Run the simulation
+            for i in range(1, nsteps+1):
+                animate(i, wall_yMax, wall_yMin)
 
-            # store all the data from the transient phase            
-            if i==transient_cutoff:
-                transient_hist_pos = hist_pos.copy()
-                transient_Hx_stream = _Hx_stream.copy()
-                transient_Hy_stream = _Hy_stream.copy()
+                # store all the data from the transient phase            
+                # if i==transient_cutoff:
+                    # transient_hist_pos = hist_pos.copy()
+                    # transient_Hx_stream = _Hx_stream.copy()
+                    # transient_Hy_stream = _Hy_stream.copy()
+                    # transient_orientations = average_orientations.copy()
 
-            # reset the data for the steady state
-            if i==5000:
-                hist_pos = np.zeros_like(hist_pos)
-                _Hx_stream = np.zeros_like(_Hx_stream)
-                _Hy_stream = np.zeros_like(_Hy_stream)
+                # reset the data for the steady state
+                # if i==5000:
+                    # hist_pos = np.zeros_like(hist_pos)
+                    # _Hx_stream = np.zeros_like(_Hx_stream)
+                    # _Hy_stream = np.zeros_like(_Hy_stream)
+                    # average_orientations = np.zeros_like(average_orientations)
 
         ## Saving into npz floats for later analysis
         # np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
@@ -413,15 +418,17 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
         # np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
         # np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
         # np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
-        np.savez_compressed(f'{savedir}/orientations_{l}_{J}.npz', orientations = average_orientations) 
 
         # ## Saving positions and orientations for setup for recreation of the system
         # np.savez_compressed(f'{savedir}/finalstate_{l}_{J}.npz', Positions = positions, Orientation = angles)
 
         # Reset the data storage arrays
-        hist_pos = np.zeros_like(hist_pos)
-        _Hx_stream = np.zeros_like(_Hx_stream)
-        _Hy_stream = np.zeros_like(_Hy_stream)
-        average_angles = []
-        average_orientations = []
-        std_angles = []
+        # hist_pos = np.zeros_like(hist_pos)
+        # _Hx_stream = np.zeros_like(_Hx_stream)
+        # _Hy_stream = np.zeros_like(_Hy_stream)
+        # average_angles = []
+        # std_angles = []
+
+            # Noise experiment
+            np.savez_compressed(f'{savedir}/orientations_{eta}_{J}.npz', orientations = average_orientations, noise = eta) 
+            average_orientations = []
