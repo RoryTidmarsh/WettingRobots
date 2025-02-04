@@ -357,7 +357,7 @@ current_dir = os.path.dirname(__file__)
 
 
 # # Loop for each wall length
-for l_ratio in [0.0,1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
+for l_ratio in [1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
     l = L* l_ratio
@@ -372,7 +372,7 @@ for l_ratio in [0.0,1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
     # output_parameters(savedir)
     
     # # Looping over the noise
-    for eta in [0.05,0.15,0.25,0.35,0.45]:#np.linspace(0.1,0.7, 7):
+    for eta in [0.225,0.275,0.325,0.375]:#[0.05,0.15,0.25,0.35,0.45]:#np.linspace(0.1,0.7, 7):
     # # Creating multiple iterations to be averaged for the alignment
         for J in range(3):
 

@@ -94,26 +94,25 @@ def compress_data():
     return compressed_data
         
 
-def read_individual(wall_length, eta, iteration):
-    folder_path = dir + "/" + f"{file_starter}_{wall_length}_10000"
-    filepath = folder_path + "/" + f"orientations_{eta}_{iteration}.npz"
-    sim_data = np.load(filepath)
+def read_individual(wall_length, eta, iteration,start_index):
+    filepath = dir+ f"/{dir_starter}_{wall_length}_10000/orientations_{eta}_{iteration}.npz"
+    sim_data = np.load(filepath)["orientations"][start_index:]
+    return sim_data
 
-    return sim_data["orientations"]
-
-def plot_noise_dependance(compressed_data, target_wall_length, steady_state_start_index = 0):
-    noise_values = []
-    final_orientations = []
+def plot_noise_dependance(compressed_data, target_wall_length, steady_state_start_index=0):
+    noise_orient_pairs = []
 
     for data in compressed_data:
         if data["wall_length"] == target_wall_length:
-            # print(data)
-            noise_values.append(data["eta"])
-            # final_orientations.append(data["orientations"][steady_state_start_index:])
-            average_orientation = np.mean(data["orientations"][steady_state_start_index:])
-            final_orientations.append(average_orientation)
-    assert len(noise_values) == len(final_orientations)
-    return noise_values, final_orientations
+            noise = data["eta"]
+            avg_orientation = np.mean(data["orientations"][steady_state_start_index:])
+            noise_orient_pairs.append((noise, avg_orientation))
+    
+    # Sort by noise values
+    noise_orient_pairs.sort(key=lambda x: x[0])
+    noise_values, final_orientations = zip(*noise_orient_pairs)
+    
+    return np.array(noise_values), np.array(final_orientations)
 
 compressed_data = compress_data()
 
@@ -121,11 +120,30 @@ fig, ax = plt.subplots()
 for wall_length in wall_lengths:
     noise_values, final_orientations = plot_noise_dependance(compressed_data, target_wall_length=wall_length,steady_state_start_index=3000)
     wall_label = float(wall_length)
-    ax.plot(noise_values,final_orientations, label = rf"$l$: {Fraction(wall_label/64.0).limit_denominator()}$L$")
+    ax.plot(noise_values,final_orientations, label = rf"$l$: {Fraction(wall_label/64.0).limit_denominator()}$L$", marker  = ".")
 
 ax.legend(frameon = False)
 ax.set_xlabel(r"$\eta$")
 ax.set_ylabel(r"$\langle \varphi \rangle_t$")
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
+# plt.show()
+
+
+# Reading an indivdual case
+wall_length = wall_lengths[2]
+start_index = 0
+eta = 0.2
+i = 2
+fig,ax2 = plt.subplots()
+for i in range(3):
+    sim_data = read_individual(wall_length,eta,i,start_index)
+    x = np.arange(0,len(sim_data),1)+start_index
+    ax2.plot(x,sim_data, label = f"{i}")
+ax2.set_title(fr"Average Orientation, $\eta$: {eta}, $l$: {Fraction(float(wall_length)/64.0).limit_denominator()}$L$")
+ax2.legend(frameon = False)
+ax2.set_ylabel(r'$\varphi$')
+ax2.set_xlabel('Time Step')
+ax2.spines['top'].set_visible(False)
+ax2.spines['right'].set_visible(False)
 plt.show()
