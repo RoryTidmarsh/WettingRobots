@@ -11,7 +11,7 @@ from pycircular.stats import periodic_mean_std
 import os
 
 # parameters
-L = 32 # size of box
+L = 100 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
@@ -183,6 +183,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
                         # Calculate squared distance for efficiency
                         dx = positions[i, 0] - positions[j, 0]
                         dy = positions[i, 1] - positions[j, 1]
+
+                        # Periodic Interaction
+                        dx = dx - L * np.round(dx/L)
+                        dy = dy - L * np.round(dy/L)
+
                         distance_sq = dx * dx + dy * dy
                         if distance_sq < r0 * r0:  # Compare with squared radius
                             if count_neigh < max_num_neighbours:
@@ -234,10 +239,10 @@ def animate(frames, wall_yMax, wall_yMin):
     return qv,
  
 ## Showing the animation
-figwidth = 6
-totalheight = 7
+figwidth = 7
+totalheight = 6
 fig, ax = plt.subplots(figsize = (figwidth, totalheight))   
-# ax = plot_x_wall(ax, boundary = False)
+ax = plot_x_wall(ax, boundary = False)
 ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 # Add a color bar
@@ -245,7 +250,7 @@ cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
 cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
-ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True, fargs = (0,0))
+ani = FuncAnimation(fig, animate, frames = range(1, iterations, 100), interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
 ax.legend(loc = "upper right")
 # ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 plt.show()

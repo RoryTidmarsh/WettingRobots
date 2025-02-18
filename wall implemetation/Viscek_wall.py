@@ -213,6 +213,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
                         # Calculate squared distance for efficiency
                         dx = positions[i, 0] - positions[j, 0]
                         dy = positions[i, 1] - positions[j, 1]
+
+                        # Periodic Interaction
+                        dx = dx - L * np.round(dx/L)
+                        dy = dy - L * np.round(dy/L)
+                        
                         distance_sq = dx * dx + dy * dy
                         if distance_sq < r0 * r0:  # Compare with squared radius
                             if count_neigh < max_num_neighbours:

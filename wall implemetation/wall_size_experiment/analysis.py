@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 plt.style.use("default")
 from fractions import Fraction
 
-dir = str(os.getcwd())+ "\wall implemetation\wall_size_experiment"
+dir = str(os.getcwd())+ "\wall implemetation\wall_size_experiment\.hidden_tests"
 filenames = os.listdir(dir)
 print(filenames)
 cmap = "hsv"
@@ -121,9 +121,9 @@ def reading_all(filenames, simulations, dir_starter = "WALL128", iteration = -1)
             simulations.append(data)
     return simulations
 
-
-simulations = reading_all(filenames, [], file_starter, iteration= 5)
-# print(len(simulations))
+# file_starter = ".hidden_test/test128"
+simulations = reading_all(filenames, [], file_starter, iteration = 0)
+print(len(simulations))
 i = 2
 
 text_width = 5.5
@@ -304,6 +304,6 @@ if final_positions:
     ax7.spines['top'].set_visible(False)
     ax7.spines['right'].set_visible(False)
 
-
+plt.tight_layout()
 plt.show()
 

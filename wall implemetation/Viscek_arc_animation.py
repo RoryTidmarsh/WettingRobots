@@ -11,7 +11,7 @@ from pycircular.stats import periodic_mean_std
 import os
 
 # parameters
-L = 64 # size of box
+L = 32 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
@@ -25,10 +25,10 @@ max_num_neighbours= 100
 
 # Curved wall parameters
 radius = L/2    # radius of the circle
-center_x = L/2 #- radius  # x-coordinate of circle center
+center_x = L/4 #- radius  # x-coordinate of circle center
 center_y = L/2  # y-coordinate of circle center
-arc_angle = 4*np.pi/2  # length of arc in radians (pi/2 = quarter circle)
-start_angle = -arc_angle/2  # starting angle of the arc
+arc_angle = np.pi/2  # length of arc in radians (pi/2 = quarter circle)
+start_angle = -arc_angle/2#-arc_angle/2  # starting angle of the arc
 wall_distance = r0  # interaction distance from wall
 turn_factor = 0.2
 step_num = 0
@@ -214,6 +214,11 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
                         # Calculate squared distance for efficiency
                         dx = positions[i, 0] - positions[j, 0]
                         dy = positions[i, 1] - positions[j, 1]
+
+                        # Periodic Interaction
+                        dx = dx - L * np.round(dx/L)
+                        dy = dy - L * np.round(dy/L)
+                    
                         distance_sq = dx * dx + dy * dy
                         if distance_sq < r0 * r0:  # Compare with squared radius
                             if count_neigh < max_num_neighbours:
