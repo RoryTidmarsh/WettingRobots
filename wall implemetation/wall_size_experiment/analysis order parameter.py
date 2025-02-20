@@ -4,19 +4,34 @@ import matplotlib.pyplot as plt
 plt.style.use("default")
 from fractions import Fraction
 
-dir = str(os.getcwd())+ "/wall implemetation/noise_experiment"
+dir = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/50wall"
 filenames = os.listdir(dir)
-dir_starter = "noise64"
+dir_starter = "0.3noise50"
+save_dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall//figures"
 # print(filenames)
 cmap = "hsv"
-L = 128
-file_starter = "test128"
+L = 50
+# file_starter = "wall"
 
-stream_plots = False
-alignment = True
-histograms = False
-final_positions = False
+i = 1
 
+text_width = 20
+fig_width = text_width
+fig_height = 0.75* fig_width 
+
+width_2_subplot = fig_width/2 + 1
+height_2_subplot = 0.75*width_2_subplot
+height_cbar_2_subplot = 0.75*width_2_subplot
+
+scale = 1
+plt.rcParams.update({
+    'font.size': 28*scale,
+    'axes.labelsize': 28*scale,
+    'axes.titlesize': 36*scale,
+    'xtick.labelsize': 28*scale,
+    'ytick.labelsize': 28*scale,
+    'legend.fontsize': 28*scale
+})
 
 def read_summary_file(filepath):
     summary_data = {}
@@ -50,19 +65,20 @@ def read_orientations():
 
                 # Reading orienatation data
                 if item.endswith(".npz"):
-                    data = {}
-                    sim_data = np.load(folder_path + "/" + item)
-                    data["orientations"] = sim_data["orientations"]
-                    eta = float(sim_data["noise"])
-                    data["eta"] = eta
-                    data["wall_length"] = wall_length
+                    if item.split("_")[0] == "orientations":
+                        data = {}
+                        sim_data = np.load(folder_path + "/" + item)
+                        data["orientations"] = sim_data["orientations"]
+                        eta = float(sim_data["noise"])
+                        data["eta"] = eta
+                        data["wall_length"] = wall_length
 
-                    # Add to the big data dictionary list
-                    orientation_data.append(data)
+                        # Add to the big data dictionary list
+                        orientation_data.append(data)
 
-                    # Adding all the etas to be stored
-                    if eta not in etas:
-                        etas.append(eta)
+                        # Adding all the etas to be stored
+                        if eta not in etas:
+                            etas.append(eta)
     return orientation_data#, wall_lengths, etas
 
 def compress_data():
@@ -116,34 +132,36 @@ def plot_noise_dependance(compressed_data, target_wall_length, steady_state_star
 
 compressed_data = compress_data()
 
-fig, ax = plt.subplots()
-for wall_length in wall_lengths:
-    noise_values, final_orientations = plot_noise_dependance(compressed_data, target_wall_length=wall_length,steady_state_start_index=3000)
-    wall_label = float(wall_length)
-    ax.plot(noise_values,final_orientations, label = rf"$l$: {Fraction(wall_label/64.0).limit_denominator()}$L$", marker  = ".")
+# fig, ax = plt.subplots(figsize = (fig_width,fig_height))
+# for wall_length in wall_lengths:
+#     noise_values, final_orientations = plot_noise_dependance(compressed_data, target_wall_length=wall_length,steady_state_start_index=3000)
+#     wall_label = float(wall_length)
+#     ax.plot(noise_values,final_orientations, label = rf"$l$: {Fraction(wall_label/64.0).limit_denominator(3)}$L$", marker  = ".")
 
-ax.legend(frameon = False)
-ax.set_xlabel(r"$\eta$")
-ax.set_ylabel(r"$\langle \varphi \rangle_t$")
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+# ax.legend(frameon = False)
+# ax.set_xlabel(r"$\eta$")
+# ax.set_ylabel(r"$\langle \varphi \rangle_t$")
+# ax.spines['top'].set_visible(False)
+# ax.spines['right'].set_visible(False)
 # plt.show()
 
 
 # Reading an indivdual case
-wall_length = wall_lengths[2]
-start_index = 0
-eta = 0.1
-i = 2
-fig,ax2 = plt.subplots()
+wall_length = wall_lengths[-1]
+start_index = 3000
+eta = 0.3
+i = 0
+fig,ax2 = plt.subplots(figsize = (fig_width,fig_height))
 for i in range(3):
     sim_data = read_individual(wall_length,eta,i,start_index)
     x = np.arange(0,len(sim_data),1)+start_index
     ax2.plot(x,sim_data, label = f"{i}")
-ax2.set_title(fr"Average Orientation, $\eta$: {eta}, $l$: {Fraction(float(wall_length)/64.0).limit_denominator()}$L$")
+ax2.set_title(fr"Average Orientation, $\eta$: {eta}, $l$: {Fraction(float(wall_length)/L).limit_denominator(3)}$L$")
 ax2.legend(frameon = False)
 ax2.set_ylabel(r'$\varphi$')
 ax2.set_xlabel('Time Step')
 ax2.spines['top'].set_visible(False)
 ax2.spines['right'].set_visible(False)
+fig.tight_layout()
+plt.savefig(f"{save_dir}\\50wall_eta{eta}.png", dpi = 300)
 plt.show()

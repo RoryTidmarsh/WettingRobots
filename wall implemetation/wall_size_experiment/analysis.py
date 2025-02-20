@@ -3,18 +3,40 @@ import os
 import matplotlib.pyplot as plt
 plt.style.use("default")
 from fractions import Fraction
+from matplotlib.ticker import MultipleLocator, FuncFormatter
 
-dir = str(os.getcwd())+ "\wall implemetation\wall_size_experiment\.hidden_tests"
+dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall"
 filenames = os.listdir(dir)
+save_dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall//figures"
 print(filenames)
 cmap = "hsv"
-L = 128
-file_starter = "test128"
+L = 50
+file_starter = "wall50"
 
-stream_plots = False
+stream_plots = True
 alignment = True
 histograms = False
 final_positions = False
+
+i = 1
+
+text_width = 20
+fig_width = text_width
+fig_height = 0.75* fig_width 
+
+width_2_subplot = fig_width/2 + 1
+height_2_subplot = 0.75*width_2_subplot
+height_cbar_2_subplot = 0.75*width_2_subplot
+
+scale = 1
+plt.rcParams.update({
+    'font.size': 28*scale,
+    'axes.labelsize': 28*scale,
+    'axes.titlesize': 36*scale,
+    'xtick.labelsize': 28*scale,
+    'ytick.labelsize': 28*scale,
+    'legend.fontsize': 28*scale
+})
 
 def read_summary_file(filepath):
     summary_data = {}
@@ -122,28 +144,9 @@ def reading_all(filenames, simulations, dir_starter = "WALL128", iteration = -1)
     return simulations
 
 # file_starter = ".hidden_test/test128"
-simulations = reading_all(filenames, [], file_starter, iteration = 0)
+simulations = reading_all(filenames, [], file_starter, iteration = i)
 print(len(simulations))
-i = 2
 
-text_width = 5.5
-fig_width = text_width
-fig_height = 0.75* fig_width 
-
-width_2_subplot = fig_width/2 + 1
-height_2_subplot = 0.75*width_2_subplot
-height_cbar_2_subplot = 0.85*width_2_subplot
-
-# total_height = 0.75*fig_width
-
-plt.rcParams.update({
-    'font.size': 14,
-    'axes.labelsize': 16,
-    'axes.titlesize': 16,
-    'xtick.labelsize': 14,
-    'ytick.labelsize': 14,
-    'legend.fontsize': 12
-})
 #### ALIGNMENT PLOTS ####
 if alignment:
     
@@ -174,7 +177,7 @@ if alignment:
     sorted_indices = np.argsort(wall_lengths)
     sorted_lines = [lines[i] for i in sorted_indices]
     sorted_lines2 = [lines[i] for i in sorted_indices]
-    sorted_labels = [rf"$l: {Fraction(wall_lengths[i]/L).limit_denominator()}L$" for i in sorted_indices]
+    sorted_labels = [rf"$l: {Fraction(wall_lengths[i]/L).limit_denominator(3)}L$" for i in sorted_indices]
 
     ax.set_ylim(-3.22,3.22)
     ax.legend(sorted_lines, sorted_labels, frameon= False)
@@ -186,11 +189,19 @@ if alignment:
     ax.set_ylabel(r'$\langle \theta \rangle$')
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.yaxis.set_major_locator(MultipleLocator(base=np.pi/2))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda val, pos: 
+        r'$-\pi$' if val == -np.pi else 
+        r'$-\pi/2$' if val == -np.pi/2 else 
+        r'$0$' if val == 0 else 
+        r'$\pi/2$' if val == np.pi/2 else 
+        r'$\pi$' if val == np.pi else ''))
     fig.tight_layout()
+    fig.savefig(f'{save_dir}/alignment_plot_{i}.png', dpi=300)
 
 ### AVERAGING STD ALIGNMENTS OVER 6 SIMULATIONS
 simulations = []
-for J in range(6):
+for J in range(3):
     # print(i)
     simulations = reading_all(filenames, simulations,file_starter , iteration=J)
 
@@ -237,7 +248,9 @@ if alignment:
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_visible(False)
     ax2.set_ylabel(r"$\sigma$ ($\theta$)")
-    ax2.set_ylim(0.4,3.2)
+    ax2.set_ylim(0.2,3.2)
+    fig2.tight_layout()
+    fig2.savefig(f'{save_dir}/standard_dev_plot.png', dpi=300)
 # ax2.set_title("Variation of alignment Viscek Particles with a Wall")
 
 #### STREAM PLOTS #####
@@ -258,51 +271,63 @@ if stream_plots:
     wall_length = simulations[i]["wall length"]
     zoom_distance = wall_length/2 +2
     cmap = "rainbow"
+    
+    
+    ax3.set_aspect('equal')  # Ensure square aspect ratio
+    ax4.set_aspect('equal')  # Ensure square aspect ratio
+    fig3.tight_layout()
+    fig4.tight_layout()
+    fig3.savefig(f'{save_dir}/stream_transient_{wall_length}.png', dpi=300)
+    fig4.savefig(f'{save_dir}/stream_steady_{wall_length}.png', dpi=300)
 
 
 #### DENSITY HISTOGRAMS ####
-i =2
+# i =2
 if histograms:
     # plt.rcParams.update({'font.size': 16}) 
     wall_length = wall_lengths[i]*128
-    print(Fraction(wall_lengths[i]).limit_denominator())
+    print(Fraction(wall_lengths[i]).limit_denominator(3))
     hist = wall_hist_dict[wall_length]
-    fig6, ax6 = plt.subplots(figsize=(fig_width, fig_width))
+    fig6, ax6 = plt.subplots(figsize=(fig_width, fig_height))
     #### _, ax6 = hist_2D_plot("steady", simulations[i], fig6, ax6, w_alpha=0, cmap=cmap, wall_color="pink", linestyle = "dashdot") ### This does it for 1 simulaiton only
     cax = ax6.imshow(hist.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto') # This summs all simulaitons to find an average
     cbar = fig6.colorbar(cax, ax=ax6, ticks=[])  # Removes ticks and labels in one line
     cbar.set_label('Density')
     cbar.ax.tick_params(labelsize=0)   # Remove colorbar tick labels
-    lower =  36
-    upper = 88
+    lower =  0#L*1/4
+    upper = L#*3/4
+    # ax6.set_title("Density Histogram")
     ax6.set_xlim(lower, upper)
     ax6.set_ylim(lower, upper)
     ax6.set_aspect('equal')  # Ensure square aspect ratio
     ax6.set_xticks(np.linspace(lower,upper,5))
     ax6.set_yticks(np.linspace(lower,upper,5))
-    plt.tight_layout()
+    fig6.tight_layout()
+    fig6.savefig(f'{save_dir}/density_histogram_{wall_length}.png', dpi=300)
 
 #### PLOTTING FINAL POSITIONS ####
 if final_positions:
     fig7, ax7 = plt.subplots(figsize = (fig_width, fig_width))
-    i = 16
-    positions = simulations[i]["final_positions"]
-    orientation = simulations[i]["final_orientations"]
-    wall_length = simulations[i]["wall length"]
-    x_wall = simulations[i]["L"]/2
-    wall_yMin = simulations[i]["L"]/2 - wall_length/2
-    wall_yMax = simulations[i]["L"]/2 + wall_length/2
+    pos_i = 11
+    positions = simulations[pos_i]["final_positions"]
+    orientation = simulations[pos_i]["final_orientations"]
+    wall_length = simulations[pos_i]["wall length"]
+    x_wall = simulations[pos_i]["L"]/2
+    wall_yMin = simulations[pos_i]["L"]/2 - wall_length/2
+    wall_yMax = simulations[pos_i]["L"]/2 + wall_length/2
     qv = ax7.quiver(positions[:,0], positions[:,1], np.cos(orientation), np.sin(orientation), orientation, clim = [-np.pi, np.pi], cmap = "hsv")
     if wall_length != 0:
         ax7 = plot_x_wall(ax7, x_wall, wall_yMin, wall_yMax, "red",walpha= 1)
         ax7.legend(loc = "upper right")
-    ax7.set_xticks([0,simulations[i]["L"]/4, simulations[i]["L"]/2, 3*simulations[i]["L"]/4, simulations[i]["L"]])
-    ax7.set_yticks([0,simulations[i]["L"]/4, simulations[i]["L"]/2, 3*simulations[i]["L"]/4, simulations[i]["L"]])
-    ax7.set_xlim(0, simulations[i]["L"])
-    ax7.set_ylim(0, simulations[i]["L"])
+    ax7.set_xticks([0,simulations[pos_i]["L"]/4, simulations[pos_i]["L"]/2, 3*simulations[pos_i]["L"]/4, simulations[pos_i]["L"]])
+    ax7.set_yticks([0,simulations[pos_i]["L"]/4, simulations[pos_i]["L"]/2, 3*simulations[pos_i]["L"]/4, simulations[pos_i]["L"]])
+    ax7.set_xlim(0, simulations[pos_i]["L"])
+    ax7.set_ylim(0, simulations[pos_i]["L"])
     plt.margins(0)  # Remove padding
     ax7.spines['top'].set_visible(False)
     ax7.spines['right'].set_visible(False)
+    fig7.tight_layout()
+    fig7.savefig(f'{save_dir}/final_positions.png', dpi=300)
 
 plt.tight_layout()
 plt.show()

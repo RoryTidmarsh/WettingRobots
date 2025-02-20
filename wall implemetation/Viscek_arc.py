@@ -12,7 +12,7 @@ from pycircular.stats import periodic_mean_std
 import os
 
 # parameters
-L = 64 # size of box
+L = 50 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 1.0 # interaction radius
@@ -27,7 +27,7 @@ max_num_neighbours= 100
 # Curved wall parameters
 center_x = L/3  # x-coordinate of circle center
 center_y = L/2  # y-coordinate of circle center
-radius = L/2    # radius of the circle
+radius = L/3    # radius of the circle
 arc_angle = np.pi/2  # length of arc in radians (pi/2 = quarter circle)
 start_angle = -arc_angle/2  # starting angle of the arc
 wall_distance = r0  # interaction distance from wall
@@ -360,8 +360,8 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
     wall_yMax = L/2 + l/2
 
     # Creating a directory for this wallsize to fall into
-    exp_dir = ["/wall_size_experiment", "/noise_experiment"]
-    savedir = current_dir + exp_dir[1] + f"/noise64_{l}_{nsteps}"
+    exp_dir = ["/wall_size_experiment", "/noise_experiment", "/arc_analysis"]
+    savedir = current_dir + exp_dir[-1] + f"/arc50_{l}_{nsteps}"
     delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)

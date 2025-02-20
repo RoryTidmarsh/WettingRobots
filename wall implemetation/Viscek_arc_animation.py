@@ -11,7 +11,7 @@ from pycircular.stats import periodic_mean_std
 import os
 
 # parameters
-L = 32 # size of box
+L = 50 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
@@ -24,11 +24,12 @@ max_num_neighbours= 100
 
 
 # Curved wall parameters
-radius = L/2    # radius of the circle
-center_x = L/4 #- radius  # x-coordinate of circle center
-center_y = L/2  # y-coordinate of circle center
+radius = L/3    # radius of the circle
 arc_angle = np.pi/2  # length of arc in radians (pi/2 = quarter circle)
 start_angle = -arc_angle/2#-arc_angle/2  # starting angle of the arc
+center_x = L/2 -radius*(1-np.sin(arc_angle/2))/2  # x-coordinate of circle center
+center_y = L/2  # y-coordinate of circle center
+
 wall_distance = r0  # interaction distance from wall
 turn_factor = 0.2
 step_num = 0
