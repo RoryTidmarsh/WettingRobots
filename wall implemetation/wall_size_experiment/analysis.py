@@ -13,16 +13,15 @@ cmap = "hsv"
 L = 50
 file_starter = "wall50"
 
-stream_plots = True
+stream_plots = False
 alignment = True
 histograms = False
-final_positions = False
+final_positions = True
 
 i = 1
-
-text_width = 20
+text_width = 10
 fig_width = text_width
-fig_height = 0.75* fig_width 
+fig_height = 0.8* fig_width 
 
 width_2_subplot = fig_width/2 + 1
 height_2_subplot = 0.75*width_2_subplot
@@ -35,7 +34,7 @@ plt.rcParams.update({
     'axes.titlesize': 36*scale,
     'xtick.labelsize': 28*scale,
     'ytick.labelsize': 28*scale,
-    'legend.fontsize': 28*scale
+    'legend.fontsize': 27*scale
 })
 
 def read_summary_file(filepath):
@@ -150,8 +149,8 @@ print(len(simulations))
 #### ALIGNMENT PLOTS ####
 if alignment:
     
-    fig, ax = plt.subplots(figsize=(text_width-1, fig_height-1)) #
-    fig2,ax2 = plt.subplots(figsize=(text_width-1, fig_height-1))
+    fig, ax = plt.subplots(figsize=(text_width, fig_height)) #
+    fig2,ax2 = plt.subplots(figsize=(text_width, fig_height))
     lines = []
     lines2 = []
     wall_lengths = []
@@ -302,13 +301,14 @@ if histograms:
     ax6.set_aspect('equal')  # Ensure square aspect ratio
     ax6.set_xticks(np.linspace(lower,upper,5))
     ax6.set_yticks(np.linspace(lower,upper,5))
+    ax6.set_aspect("equal")
     fig6.tight_layout()
     fig6.savefig(f'{save_dir}/density_histogram_{wall_length}.png', dpi=300)
 
 #### PLOTTING FINAL POSITIONS ####
 if final_positions:
     fig7, ax7 = plt.subplots(figsize = (fig_width, fig_width))
-    pos_i = 11
+    pos_i = 3
     positions = simulations[pos_i]["final_positions"]
     orientation = simulations[pos_i]["final_orientations"]
     wall_length = simulations[pos_i]["wall length"]
@@ -326,6 +326,7 @@ if final_positions:
     plt.margins(0)  # Remove padding
     ax7.spines['top'].set_visible(False)
     ax7.spines['right'].set_visible(False)
+    ax7.set_aspect("equal")
     fig7.tight_layout()
     fig7.savefig(f'{save_dir}/final_positions.png', dpi=300)
 

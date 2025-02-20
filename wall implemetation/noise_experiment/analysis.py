@@ -10,12 +10,24 @@ dir_starter = "noise64"
 # print(filenames)
 cmap = "hsv"
 L = 128
-file_starter = "test128"
 
-stream_plots = False
-alignment = True
-histograms = False
-final_positions = False
+text_width = 10
+fig_width = text_width
+fig_height = 0.8* fig_width 
+
+width_2_subplot = fig_width/2 + 1
+height_2_subplot = 0.75*width_2_subplot
+height_cbar_2_subplot = 0.75*width_2_subplot
+
+scale = 1
+plt.rcParams.update({
+    'font.size': 28*scale,
+    'axes.labelsize': 28*scale,
+    'axes.titlesize': 36*scale,
+    'xtick.labelsize': 28*scale,
+    'ytick.labelsize': 28*scale,
+    'legend.fontsize': 27*scale
+})
 
 
 def read_summary_file(filepath):
@@ -116,7 +128,7 @@ def plot_noise_dependance(compressed_data, target_wall_length, steady_state_star
 
 compressed_data = compress_data()
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize = (fig_width,fig_height))
 for wall_length in wall_lengths:
     noise_values, final_orientations = plot_noise_dependance(compressed_data, target_wall_length=wall_length,steady_state_start_index=3000)
     wall_label = float(wall_length)
@@ -146,4 +158,5 @@ ax2.set_ylabel(r'$\varphi$')
 ax2.set_xlabel('Time Step')
 ax2.spines['top'].set_visible(False)
 ax2.spines['right'].set_visible(False)
+fig.tight_layout()
 plt.show()

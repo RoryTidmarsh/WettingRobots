@@ -6,7 +6,7 @@ from fractions import Fraction
 
 dir = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/50wall"
 filenames = os.listdir(dir)
-dir_starter = "0.3noise50"
+dir_starter = ["0.3noise50","wall50"][0]
 save_dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall//figures"
 # print(filenames)
 cmap = "hsv"
@@ -15,7 +15,7 @@ L = 50
 
 i = 1
 
-text_width = 20
+text_width = 10
 fig_width = text_width
 fig_height = 0.75* fig_width 
 
@@ -150,16 +150,17 @@ compressed_data = compress_data()
 wall_length = wall_lengths[-1]
 start_index = 3000
 eta = 0.3
-i = 0
+i = 1
 fig,ax2 = plt.subplots(figsize = (fig_width,fig_height))
 for i in range(3):
     sim_data = read_individual(wall_length,eta,i,start_index)
     x = np.arange(0,len(sim_data),1)+start_index
     ax2.plot(x,sim_data, label = f"{i}")
-ax2.set_title(fr"Average Orientation, $\eta$: {eta}, $l$: {Fraction(float(wall_length)/L).limit_denominator(3)}$L$")
+# ax2.set_title(fr"Average Orientation, $\eta$: {eta}, $l$: {Fraction(float(wall_length)/L).limit_denominator(3)}$L$")
 ax2.legend(frameon = False)
 ax2.set_ylabel(r'$\varphi$')
 ax2.set_xlabel('Time Step')
+ax2.set_ylim(0,1)
 ax2.spines['top'].set_visible(False)
 ax2.spines['right'].set_visible(False)
 fig.tight_layout()
