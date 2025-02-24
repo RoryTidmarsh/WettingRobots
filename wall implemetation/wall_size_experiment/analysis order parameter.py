@@ -4,13 +4,15 @@ import matplotlib.pyplot as plt
 plt.style.use("default")
 from fractions import Fraction
 
-dir = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/50wall"
+dir = str(os.getcwd())+ "/wall implemetation/wall_size_experiment//128wall"
 filenames = os.listdir(dir)
-dir_starter = ["0.3noise50","wall50"][0]
-save_dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall//figures"
+eta = 0.1
+# dir_starter = ["0.3noise50","wall50",][0]
+dir_starter = f"{eta}noise128"
+save_dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//128wall//figures"
 # print(filenames)
 cmap = "hsv"
-L = 50
+L = 128
 # file_starter = "wall"
 
 i = 1
@@ -109,7 +111,6 @@ def compress_data():
                 
     return compressed_data
         
-
 def read_individual(wall_length, eta, iteration,start_index):
     filepath = dir+ f"/{dir_starter}_{wall_length}_10000/orientations_{eta}_{iteration}.npz"
     sim_data = np.load(filepath)["orientations"][start_index:]
@@ -149,7 +150,7 @@ compressed_data = compress_data()
 # Reading an indivdual case
 wall_length = wall_lengths[-1]
 start_index = 3000
-eta = 0.3
+# eta = 0.3
 i = 1
 fig,ax2 = plt.subplots(figsize = (fig_width,fig_height))
 for i in range(3):

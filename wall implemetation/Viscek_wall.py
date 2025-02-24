@@ -371,7 +371,7 @@ for l_ratio in [1.0]:#np.linspace(0,1,6)[1::2]:
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
 
-    for eta in [0.1,0.15,0.2]:
+    for eta in [0.25,0.3,0.35]:
         # Creating a directory for this wallsize to fall into
         exp_dir = ["/wall_size_experiment/128wall", "/noise_experiment", "/wall_size_experiment/50wall"]
         savedir = current_dir + exp_dir[0] + f"/{eta}noise{int(L)}_{l}_{nsteps}"

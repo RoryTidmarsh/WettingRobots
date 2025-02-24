@@ -4,21 +4,25 @@ import matplotlib.pyplot as plt
 plt.style.use("default")
 from fractions import Fraction
 from matplotlib.ticker import MultipleLocator, FuncFormatter
-
-dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall"
+folder_name = "128wall"
+dir = str(os.getcwd())+ f"\wall implemetation//wall_size_experiment//{folder_name}"
 filenames = os.listdir(dir)
-save_dir = str(os.getcwd())+ "\wall implemetation//wall_size_experiment//50wall//figures"
+save_dir = str(os.getcwd())+ f"\wall implemetation//wall_size_experiment//{folder_name}//figures"
 print(filenames)
 cmap = "hsv"
-L = 50
-file_starter = "wall50"
+L = 128
+file_starter = "0.1noise128"
+noise = file_starter.split("n")[0]
+print(noise)
+
 
 stream_plots = False
-alignment = True
+alignment = False
 histograms = False
 final_positions = True
 
-i = 1
+
+i = 0
 text_width = 10
 fig_width = text_width
 fig_height = 0.8* fig_width 
@@ -31,7 +35,7 @@ scale = 1
 plt.rcParams.update({
     'font.size': 28*scale,
     'axes.labelsize': 28*scale,
-    'axes.titlesize': 36*scale,
+    'axes.titlesize': 28*scale,
     'xtick.labelsize': 28*scale,
     'ytick.labelsize': 28*scale,
     'legend.fontsize': 27*scale
@@ -144,7 +148,7 @@ def reading_all(filenames, simulations, dir_starter = "WALL128", iteration = -1)
 
 # file_starter = ".hidden_test/test128"
 simulations = reading_all(filenames, [], file_starter, iteration = i)
-print(len(simulations))
+# print(len(simulations))
 
 #### ALIGNMENT PLOTS ####
 if alignment:
@@ -196,7 +200,8 @@ if alignment:
         r'$\pi/2$' if val == np.pi/2 else 
         r'$\pi$' if val == np.pi else ''))
     fig.tight_layout()
-    fig.savefig(f'{save_dir}/alignment_plot_{i}.png', dpi=300)
+    # fig.savefig(f'{save_dir}/alignment_plot_{i}.png', dpi=300)
+    fig.savefig(f'{save_dir}/alignment_plot_{i}_{noise}.png', dpi=300)
 
 ### AVERAGING STD ALIGNMENTS OVER 6 SIMULATIONS
 simulations = []
@@ -232,14 +237,14 @@ for wall_length, std_list in wall_std_dict.items():
     avg_std = np.mean(std_list, axis=0)
     
     # Convert wall_length to a fraction
-    wall_label_fraction = Fraction(wall_length / 128.0).limit_denominator()
+    wall_label_fraction = Fraction(wall_length / L).limit_denominator()
     wall_label = f"wall length: {wall_label_fraction}"
     
     if alignment:
         line2 = ax2.plot(times, avg_std, label=wall_label)[0]
         lines2.append(line2)
     
-    wall_lengths.append(wall_length / 128.0)
+    wall_lengths.append(wall_length /L)
 
 if alignment:
     ax2.legend(sorted_lines2, sorted_labels, frameon=False)
@@ -249,7 +254,8 @@ if alignment:
     ax2.set_ylabel(r"$\sigma$ ($\theta$)")
     ax2.set_ylim(0.2,3.2)
     fig2.tight_layout()
-    fig2.savefig(f'{save_dir}/standard_dev_plot.png', dpi=300)
+    # fig2.savefig(f'{save_dir}/standard_dev_plot.png', dpi=300)
+    fig2.savefig(f'{save_dir}/standard_dev_plot_{noise}.png', dpi=300)
 # ax2.set_title("Variation of alignment Viscek Particles with a Wall")
 
 #### STREAM PLOTS #####
@@ -276,15 +282,16 @@ if stream_plots:
     ax4.set_aspect('equal')  # Ensure square aspect ratio
     fig3.tight_layout()
     fig4.tight_layout()
-    fig3.savefig(f'{save_dir}/stream_transient_{wall_length}.png', dpi=300)
-    fig4.savefig(f'{save_dir}/stream_steady_{wall_length}.png', dpi=300)
-
+    # fig3.savefig(f'{save_dir}/stream_transient_{wall_length}.png', dpi=300)
+    # fig4.savefig(f'{save_dir}/stream_steady_{wall_length}.png', dpi=300)
+    fig3.savefig(f'{save_dir}/stream_transient_{wall_length}_{noise}.png', dpi=300)
+    fig4.savefig(f'{save_dir}/stream_steady_{wall_length}_{noise}.png', dpi=300)
 
 #### DENSITY HISTOGRAMS ####
 # i =2
 if histograms:
     # plt.rcParams.update({'font.size': 16}) 
-    wall_length = wall_lengths[i]*128
+    wall_length = wall_lengths[i]*L
     print(Fraction(wall_lengths[i]).limit_denominator(3))
     hist = wall_hist_dict[wall_length]
     fig6, ax6 = plt.subplots(figsize=(fig_width, fig_height))
@@ -303,12 +310,13 @@ if histograms:
     ax6.set_yticks(np.linspace(lower,upper,5))
     ax6.set_aspect("equal")
     fig6.tight_layout()
-    fig6.savefig(f'{save_dir}/density_histogram_{wall_length}.png', dpi=300)
+    # fig6.savefig(f'{save_dir}/density_histogram_{wall_length}.png', dpi=300)
+    fig6.savefig(f'{save_dir}/density_histogram_{wall_length}_noise.png', dpi=300)
 
 #### PLOTTING FINAL POSITIONS ####
 if final_positions:
     fig7, ax7 = plt.subplots(figsize = (fig_width, fig_width))
-    pos_i = 3
+    pos_i = 4
     positions = simulations[pos_i]["final_positions"]
     orientation = simulations[pos_i]["final_orientations"]
     wall_length = simulations[pos_i]["wall length"]
@@ -321,14 +329,20 @@ if final_positions:
         ax7.legend(loc = "upper right")
     ax7.set_xticks([0,simulations[pos_i]["L"]/4, simulations[pos_i]["L"]/2, 3*simulations[pos_i]["L"]/4, simulations[pos_i]["L"]])
     ax7.set_yticks([0,simulations[pos_i]["L"]/4, simulations[pos_i]["L"]/2, 3*simulations[pos_i]["L"]/4, simulations[pos_i]["L"]])
+    # ax7.set_yticks([0,10,20,30,40,50]) # To match Isobel's
+    # ax7.set_xticks([0,10,20,30,40,50]) # To match Isobel's
+    # ax7.set_title("Frame 10,000") # To match Isobel's
+    # ax7.set_xlabel("x") # To match Isobel's
+    # ax7.set_ylabel("y") # To match Isobel's
     ax7.set_xlim(0, simulations[pos_i]["L"])
     ax7.set_ylim(0, simulations[pos_i]["L"])
-    plt.margins(0)  # Remove padding
-    ax7.spines['top'].set_visible(False)
-    ax7.spines['right'].set_visible(False)
+    # plt.margins(0)  # Remove padding
+    ax7.spines['top'].set_visible(True)
+    ax7.spines['right'].set_visible(True)
     ax7.set_aspect("equal")
     fig7.tight_layout()
-    fig7.savefig(f'{save_dir}/final_positions.png', dpi=300)
+    # fig7.savefig(f'{save_dir}/final_positions.png', dpi=300)
+    fig7.savefig(f'{save_dir}/final_positions_{noise}.png', dpi=300)
 
 plt.tight_layout()
 plt.show()
