@@ -11,24 +11,23 @@ from pycircular.stats import periodic_mean_std
 import os
 
 # parameters
-L = 100 # size of box
+L = 50 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
 deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
-iterations = 400 # animation frames
+iterations = 1000 # animation frames
 eta = 0.1  # noise/randomness
 max_num_neighbours= 100
 
 
 # Defining parameters for a wall only in the x direction.
 wall_x = L/2
-wall_yMin = 0   #L/2 - L/4
-wall_yMax = L   #L/2 + L/4
+wall_yMin = L/2 -L/3
+wall_yMax = L/2 +L/3
 wall_distance = r0
-wall_turn = np.deg2rad(110)
 turn_factor = 0.2
 step_num = 0
 
@@ -250,9 +249,9 @@ cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
 cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
-ani = FuncAnimation(fig, animate, frames = range(1, iterations, 100), interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
+ani = FuncAnimation(fig, animate, frames= iterations, interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
 ax.legend(loc = "upper right")
-# ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
+ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 plt.show()
 np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
 

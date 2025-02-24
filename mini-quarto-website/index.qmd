@@ -1,4 +1,8 @@
+# Vicsek model with Repulsive barriers
+<img id="uob-logo" src="gifs/UOB-logo.png" alt="School of Physics">
 
-# Field
+## Repulsive Field Interaction - Rory Tidmarsh
 
-![Rory](gifs/field.gif)
+![](gifs/field.gif)
+
+## Fixed Angle Turn Interaction - Isobel Higgins
