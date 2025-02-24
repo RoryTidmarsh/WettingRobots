@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-# Welcome
 
-![Rory](figures/Vicek_varying_wall_turn_p%3D4.20.gif)
-=======
-# Welcome
->>>>>>> ea8b4cc8ff2cbd81b4760831e14c3ba0415ffffc
+# Field
+
+![Rory](gifs/field.gif)
