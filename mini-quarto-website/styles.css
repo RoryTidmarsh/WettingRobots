@@ -1,0 +1,18 @@
+body {
+    background-color: #ffffff; /* Pastel yellow background */
+}
+
+h1 {
+    color: #000000; /* Pastel red for headings */
+}
+
+h2 {
+    color: #2c2c2cd2; /* Pastel red for headings */
+}
+
+#uob-logo {
+    position: absolute;
+    top: 25px;
+    right: 150px;
+    width: 200px; /* Adjust the size as needed */
+}
