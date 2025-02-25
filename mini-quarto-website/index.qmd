@@ -1,5 +1,6 @@
-# Vicsek model with Repulsive barriers
 <img id="uob-logo" src="gifs/UOB-logo.png" alt="School of Physics">
+
+# Vicsek model with Repulsive barriers
 
 ## Repulsive Field Interaction - Rory Tidmarsh
 

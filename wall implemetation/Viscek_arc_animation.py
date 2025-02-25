@@ -25,9 +25,9 @@ max_num_neighbours= 100
 
 # Curved wall parameters
 radius = L/3    # radius of the circle
-arc_angle = np.pi/2  # length of arc in radians (pi/2 = quarter circle)
+arc_angle = np.pi  # length of arc in radians (pi/2 = quarter circle)
 start_angle = -arc_angle/2#-arc_angle/2  # starting angle of the arc
-center_x = L/2 -radius*(1-np.sin(arc_angle/2))/2  # x-coordinate of circle center
+center_x = L/2 # x-coordinate of circle center
 center_y = L/2  # y-coordinate of circle center
 
 wall_distance = r0  # interaction distance from wall
@@ -96,7 +96,7 @@ def point_to_arc_distance(x,y, center_x, center_y, radius, start_angle, arc_angl
 
 
 @numba.njit
-def arc_angle_turn(x_pos, y_pos, turn_factor):
+def arc_angle_turn(x_pos, y_pos, turn_factor, arc_angle):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
@@ -183,7 +183,7 @@ def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
 
 
 @numba.njit(parallel=True)
-def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_yMax, wall_yMin):
+def update(positions, angles, cell_size, num_cells, max_particles_per_cell,arc_angle):
     
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
@@ -234,7 +234,7 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
         if arc_angle ==0:   # no wall case
             wall_turn = 0
         else:
-            wall_turn = arc_angle_turn(x_pos, y_pos, turn_factor)
+            wall_turn = arc_angle_turn(x_pos, y_pos, turn_factor, arc_angle)
         noise = eta * np.random.uniform(-np.pi, np.pi)
         # if there are neighbours, calculate average angle      
         if count_neigh > 0:
@@ -253,10 +253,10 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
 
     return new_positions, new_angles
 
-def animate(frames, wall_yMax, wall_yMin):
+def animate(frames,arc_angle):
     # print(frames)
     global positions, angles, step_num
-    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin)
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, arc_angle)
 
 
     # Update global variables
@@ -274,8 +274,9 @@ def animate(frames, wall_yMax, wall_yMin):
 figwidth = 7
 totalheight = 6
 fig, ax = plt.subplots(figsize = (figwidth, totalheight))   
-# ax = plot_x_wall(ax, boundary = False)
-ax = plot_arc(ax, boundary=True)
+# arc_angle = np.pi/6
+# start_angle = -arc_angle/2
+
 ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 # Add a color bar
@@ -283,7 +284,9 @@ cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
 cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
-ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True, fargs = (0,0))
+ax = plot_arc(ax, boundary=True)
+# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), fargs=arc_angle, interval = 5, blit = True)
+ani = FuncAnimation(fig, animate, frames=range(1, int(iterations/10)), fargs=(arc_angle,), interval=5, blit=True)
 ax.legend(loc = "upper right")
 # ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 plt.show()
