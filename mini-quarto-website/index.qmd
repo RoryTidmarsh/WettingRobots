@@ -2,8 +2,10 @@
 
 # Vicsek model with Repulsive barriers
 
-## Repulsive Field Interaction - Rory Tidmarsh
+## Repulsive Field Interaction Model - Rory Tidmarsh
 
-![](gifs/field.gif)
+![](gifs/field2.gif)
 
-## Fixed Angle Turn Interaction - Isobel Higgins
+## Forced Turn Repulsion Model - Isobel Higgins
+
+![](gifs/Poster_Vicsek_bands_city.mp4)

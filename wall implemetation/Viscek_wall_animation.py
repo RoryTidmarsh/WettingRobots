@@ -238,20 +238,19 @@ def animate(frames, wall_yMax, wall_yMin):
     return qv,
  
 ## Showing the animation
-figwidth = 7
+figwidth = 6
 totalheight = 6
 fig, ax = plt.subplots(figsize = (figwidth, totalheight))   
 ax = plot_x_wall(ax, boundary = False)
 ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 # Add a color bar
-cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
-cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
-cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
-
+# cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
+# cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
+# cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 ani = FuncAnimation(fig, animate, frames= iterations, interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
 ax.legend(loc = "upper right")
 ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 plt.show()
-np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
+# np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
 
