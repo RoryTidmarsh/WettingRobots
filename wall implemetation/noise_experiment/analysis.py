@@ -254,16 +254,17 @@ def get_all_histogram_params():
     
     return sorted(list(available_etas)), sorted(list(available_wall_lengths))
 
-wall_length_ind = -1
+wall_length_ind = 1
 eta_ind = 2
-# L = 64
-hist_type = ["steady", "transient"][0]
-if histograms:
-    etas, wall_lengths = get_all_histogram_params()
-    wall_length = wall_lengths[wall_length_ind]
-    # eta = etas[eta_ind]
-    eta = 0.5
 
+hist_type = ["steady", "transient"][0]
+etas, wall_lengths = get_all_histogram_params()
+wall_length = wall_lengths[wall_length_ind]
+eta = etas[eta_ind]
+
+histograms = False
+if histograms:
+    # etas, wall_lengths = get_all_histogram_params()
     steady, transient  = get_averaged_histograms(eta, wall_length)
     if hist_type == "steady":
         hist = steady
@@ -288,4 +289,53 @@ if histograms:
     ax3.set_aspect("equal")
     fig3.tight_layout()
 
+
+def find_near_region(histogram, threshold_percentage = 0.5):
+    
+    av_density = np.mean(histogram)
+    threshold_density = av_density*threshold_percentage
+    low_density_mask =  histogram < threshold_density
+
+    masked_hist = np.ones_like(histogram)*1
+    masked_hist[low_density_mask] = 0
+    
+    return masked_hist
+
+def average_distance_from_wall(masked_hist, wall_length):
+    wall_x = L/2
+    max_y = L/2 + wall_length*0.5
+    min_y = L/2 - wall_length*0.5
+    distances = []
+    n_cells = len(masked_hist)
+    
+    # Loop through all the y
+    for y in range(masked_hist.shape[1]):
+        # Check if in the bounds of the wall
+        if min_y <= y*L/n_cells <=max_y:
+            # Loop through x until the first 0
+            for x in range(masked_hist.shape[0]):
+                if masked_hist[x, y] == 0:
+                    
+                    dist_to_wall = abs(x*L/n_cells - wall_x)
+                    
+                    print(x*L/n_cells,y*L/n_cells, dist_to_wall)
+                    distances.append(dist_to_wall)
+                    break  # Stop after finding the first 0 in the x direction
+
+    if distances:
+        return np.mean(distances) # Average the distances
+    else:
+        return None
+
+  
+wall_length = wall_lengths[wall_length_ind]
+eta = etas[eta_ind]
+histogram,_ = get_averaged_histograms(eta, wall_length)
+print(average_distance_from_wall(find_near_region(histogram), float(wall_length)))
+# print(histogram)
+# print(find_near_region(histogram))
+
+fig4, ax4 = plt.subplots()
+cax = ax4.imshow(find_near_region(histogram).T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+cbar = fig4.colorbar(cax, ax=ax4)
 plt.show()
