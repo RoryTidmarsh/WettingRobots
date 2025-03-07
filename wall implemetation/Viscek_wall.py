@@ -371,21 +371,24 @@ for l_ratio in [1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
 
+    
 # Creating a directory for this wallsize to fall into
     exp_dir = ["/wall_size_experiment/128wall", "/noise_experiment", "/wall_size_experiment/50wall"]
-    savedir = current_dir + exp_dir[1] + f"/DistanceNoise{int(L)}_{l}_{nsteps}"
-    delete_files_in_directory(savedir)
+    savedir = current_dir + exp_dir[1] + f"/2DistanceNoise{int(L)}_{l}_{nsteps}"
+    # delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
     for eta in np.linspace(0.1,0.7,7):#[0.25,0.3,0.35]:
-        
+        if (l_ratio == 1/3) and (eta < 0.2):
+            continue
         
         # # Looping over the noise
         # for eta in [0.225,0.275,0.325,0.375]:#[0.05,0.15,0.25,0.35,0.45]:#np.linspace(0.1,0.7, 7):
 
         # # Creating multiple iterations to be averaged for the alignment
         for J in range(6):
-
+            if (l_ratio == 1/3) and (eta <= 0.2) and (J < 3):
+                continue  # Skip the first three iterations
             # initialise positions and angles for the new situation
             positions = np.random.uniform(0, L, size = (N, 2))
             angles = np.random.uniform(-np.pi, np.pi, size = N) 
@@ -411,15 +414,15 @@ for l_ratio in [1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
                 # store all the data from the transient phase            
                 if i==transient_cutoff:
                     transient_hist_pos = hist_pos.copy()
-                    transient_Hx_stream = _Hx_stream.copy()
-                    transient_Hy_stream = _Hy_stream.copy()
+                    # transient_Hx_stream = _Hx_stream.copy()
+                    # transient_Hy_stream = _Hy_stream.copy()
                     transient_orientations = average_orientations.copy()
 
                 # reset the data for the steady state
                 if i==5000:
                     hist_pos = np.zeros_like(hist_pos)
-                    _Hx_stream = np.zeros_like(_Hx_stream)
-                    _Hy_stream = np.zeros_like(_Hy_stream)
+                    # _Hx_stream = np.zeros_like(_Hx_stream)
+                    # _Hy_stream = np.zeros_like(_Hy_stream)
                     average_orientations = []
 
             # Saving into npz floats for later analysis
@@ -433,10 +436,10 @@ for l_ratio in [1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
             np.savez_compressed(f'{savedir}/orientations_{eta}_{J}.npz', orientations = average_orientations, transient_orientations = transient_orientations, noise = eta) 
             # Name change of histogram for varying eta
             np.savez_compressed(f'{savedir}/steady_histogram_data_{eta}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
-            np.savez_compressed(f'{savedir}/transient_histogram_data_{eta}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
+            # np.savez_compressed(f'{savedir}/transient_histogram_data_{eta}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
 
             ## Saving positions and orientations for setup for recreation of the system
-            np.savez_compressed(f'{savedir}/finalstate_{eta}_{J}.npz', Positions = positions, Orientation = angles)
+            # np.savez_compressed(f'{savedir}/finalstate_{eta}_{J}.npz', Positions = positions, Orientation = angles)
             
             # Reset the data storage arrays
             hist_pos = np.zeros_like(hist_pos)

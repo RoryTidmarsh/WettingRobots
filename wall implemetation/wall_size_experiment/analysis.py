@@ -17,9 +17,9 @@ print(noise)
 
 
 stream_plots = False
-alignment = False
+alignment = True
 histograms = False
-final_positions = True
+final_positions = False
 
 
 i = 0

@@ -10,6 +10,7 @@ dir_starter = "DistanceNoise64"
 # print(filenames)
 cmap = "hsv"
 L = 64
+r0 = 1
 
 text_width = 10
 fig_width = text_width
@@ -48,7 +49,7 @@ wall_lengths = []
 etas = []
 def read_orientations():
     orientation_data = []
-    global wall_lengths, etas,L
+    global wall_lengths, etas,L,r0
     # Each folder contains data for each wall length
     for exp_item in filenames:
         if exp_item.split("_")[0] == dir_starter:
@@ -64,6 +65,7 @@ def read_orientations():
                     summary_data = read_summary_file(folder_path + f"/{item}")
                 #     wall_length = summary_data["Wall size (l)"]
                     L = summary_data["Size of box (L)"]
+                    r0 = summary_data["Interaction radius (r0)"]
 
                 # Reading orienatation data
                 if item.endswith(".npz") & (item.split("_")[0] == "orientations"):
@@ -290,15 +292,23 @@ if histograms:
     fig3.tight_layout()
 
 
-def find_near_region(histogram, threshold_percentage = 0.5):
-    
+def find_near_region(histogram, threshold_percentage=0.5, mult_r0=3):
     av_density = np.mean(histogram)
-    threshold_density = av_density*threshold_percentage
-    low_density_mask =  histogram < threshold_density
+    threshold_density = av_density * threshold_percentage
+    low_density_mask = histogram < threshold_density
 
-    masked_hist = np.ones_like(histogram)*1
-    masked_hist[low_density_mask] = 0
-    
+    masked_hist = histogram.copy()
+    # masked_hist = np.ones_like(histogram)
+    wall_x = L / 2
+
+    n_cells = len(masked_hist)
+    cell_width = L / n_cells
+    for y in range(masked_hist.shape[1]):
+        for x in range(masked_hist.shape[0]):
+            dist_to_wall = abs((x + 0.5) * cell_width - wall_x)
+            if low_density_mask[x, y] and dist_to_wall <= mult_r0 * r0:
+                masked_hist[x, y] = 0
+
     return masked_hist
 
 def average_distance_from_wall(masked_hist, wall_length):
@@ -307,35 +317,79 @@ def average_distance_from_wall(masked_hist, wall_length):
     min_y = L/2 - wall_length*0.5
     distances = []
     n_cells = len(masked_hist)
-    
+    cell_width = L/n_cells
     # Loop through all the y
     for y in range(masked_hist.shape[1]):
         # Check if in the bounds of the wall
         if min_y <= y*L/n_cells <=max_y:
             # Loop through x until the first 0
-            for x in range(masked_hist.shape[0]):
+            for x in range(masked_hist.shape[0]): # approaching the wall from the left
                 if masked_hist[x, y] == 0:
                     
-                    dist_to_wall = abs(x*L/n_cells - wall_x)
+                    dist_to_wall = abs((x + 0.5) * cell_width - wall_x)
                     
-                    print(x*L/n_cells,y*L/n_cells, dist_to_wall)
+                    # print("left",x*L/n_cells,y*L/n_cells, dist_to_wall)
                     distances.append(dist_to_wall)
                     break  # Stop after finding the first 0 in the x direction
+            for x in range(masked_hist.shape[0]-1, 0,-1): # approaching the wall from the right
+                if masked_hist[x, y] == 0:
+                    
+                    dist_to_wall = abs((x + 0.5) * cell_width - wall_x)                   
+                    # print("right", x*L/n_cells,y*L/n_cells, dist_to_wall)
+                    distances.append(dist_to_wall)
+                    break 
 
     if distances:
-        return np.mean(distances) # Average the distances
+        return np.mean(distances) +cell_width/2, np.std(distances)  # Average the distances + distance to the edge of the cell, standard dev
     else:
         return None
 
-  
+
+threshold = 0.3
+max_distance = 2
 wall_length = wall_lengths[wall_length_ind]
-eta = etas[eta_ind]
+eta = 0.4# etas[eta_ind]
 histogram,_ = get_averaged_histograms(eta, wall_length)
-print(average_distance_from_wall(find_near_region(histogram), float(wall_length)))
+print(average_distance_from_wall(find_near_region(histogram,threshold_percentage=threshold, mult_r0=max_distance), float(wall_length)))
 # print(histogram)
 # print(find_near_region(histogram))
 
-fig4, ax4 = plt.subplots()
-cax = ax4.imshow(find_near_region(histogram).T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+fig4, ax4 = plt.subplots(ncols = 2, figsize = (fig_width*2,fig_height))
+cax = ax4[0].imshow(find_near_region(histogram, threshold, mult_r0=max_distance).T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+cax2 = ax4[1].imshow(histogram.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
 cbar = fig4.colorbar(cax, ax=ax4)
+
+
+
+fig5, ax5 = plt.subplots(figsize = (fig_width,fig_height))
+
+for wall_length in wall_lengths:
+    distances = []
+    deviations = []
+    for eta in etas:
+        steady_hist,_ = get_averaged_histograms(eta, wall_length)
+        mean, std = average_distance_from_wall(find_near_region(histogram,threshold_percentage=threshold), float(wall_length))
+        distances.append(mean)
+        deviations.append(std)
+
+    ax5.plot(etas, distances, label = f"l={Fraction(float(wall_length)/L).limit_denominator(3)}L")
+ax5.set_xlabel(r"$\eta$")
+ax5.set_ylabel(r"D ($R_0$)")
+ax5.legend(frameon=False)
+fig5.tight_layout()
+vmin =0
+vmax = 2
+bin_area = (L/320)**2 #check this value!
+fig6, ax6 = plt.subplots(nrows=2, ncols=1, figsize= (fig_width, fig_height*2))
+I1 = get_averaged_histograms(etas[1], wall_lengths[-3])[0].T/bin_area
+cax4 = ax6[0].imshow(I1, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto',vmin=vmin, vmax=vmax)
+ax6[0].set_xticks([])  # Remove x-axis ticks for the first subplot
+# ax6[0].set_xlabel('')  # Optionally, remove x-axis label for the first subplot
+I2 = get_averaged_histograms(etas[-1], wall_lengths[-3])[0].T/bin_area
+cax5 = ax6[1].imshow(I2, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto',vmin=vmin, vmax=vmax)
+fig6.tight_layout()
+
+fig7, ax7 = plt.subplots(figsize = (fig_width,fig_height))
+ax7.plot(I1.mean(axis=0))
+ax7.plot(I2.mean(axis=0))
 plt.show()
