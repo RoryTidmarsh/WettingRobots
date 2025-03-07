@@ -23,22 +23,31 @@ final_positions = False
 
 
 i = 0
-text_width = 10
+text_width = 3.25  # inches (single column width)
 fig_width = text_width
-fig_height = 0.8* fig_width 
-
-width_2_subplot = fig_width/2 + 1
-height_2_subplot = 0.75*width_2_subplot
-height_cbar_2_subplot = 0.75*width_2_subplot
-
-scale = 1
+fig_height = 0.8 * fig_width  # for standard plots
+width_2_subplot = fig_width/2 + 0.25  # for side-by-side subplots
+height_2_subplot = 0.75 * width_2_subplot
+height_cbar_2_subplot = 0.75 * width_2_subplot
 plt.rcParams.update({
-    'font.size': 28*scale,
-    'axes.labelsize': 28*scale,
-    'axes.titlesize': 28*scale,
-    'xtick.labelsize': 28*scale,
-    'ytick.labelsize': 28*scale,
-    'legend.fontsize': 27*scale
+    'font.size': 8,
+    'axes.labelsize': 9,
+    'axes.titlesize': 10,
+    'xtick.labelsize': 7,
+    'ytick.labelsize': 7,
+    'legend.fontsize': 7,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'figure.constrained_layout.use': True,
+    'figure.autolayout': False,
+    'axes.xmargin': 0.02,
+    'axes.ymargin': 0.02,
+    'figure.subplot.left': 0.12,
+    'figure.subplot.right': 0.97,
+    'figure.subplot.bottom': 0.12,
+    'figure.subplot.top': 0.92,
+    'figure.dpi': 300,
+    'savefig.dpi': 300
 })
 
 def read_summary_file(filepath):

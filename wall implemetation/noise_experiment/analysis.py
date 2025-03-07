@@ -12,26 +12,40 @@ cmap = "hsv"
 L = 64
 r0 = 1
 
-text_width = 10
-fig_width = text_width
-fig_height = 0.8* fig_width 
 
-width_2_subplot = fig_width/2 + 1
-height_2_subplot = 0.75*width_2_subplot
-height_cbar_2_subplot = 0.75*width_2_subplot
 
 histograms = True
 timeav_noise = False
 single_noise = False
+histogram_filters = False # Initial attempt to find the distance from the wall
+Density_profile = True # Finind the distance from the denisty profile away from the wall
 
-scale = 1
+
+text_width = 3.25  # inches (single column width)
+fig_width = text_width
+fig_height = 0.8 * fig_width  # for standard plots
+width_2_subplot = fig_width/2 + 0.25  # for side-by-side subplots
+height_2_subplot = 0.75 * width_2_subplot
+height_cbar_2_subplot = 0.75 * width_2_subplot
 plt.rcParams.update({
-    'font.size': 28*scale,
-    'axes.labelsize': 28*scale,
-    'axes.titlesize': 36*scale,
-    'xtick.labelsize': 28*scale,
-    'ytick.labelsize': 28*scale,
-    'legend.fontsize': 27*scale
+    'font.size': 8,
+    'axes.labelsize': 9,
+    'axes.titlesize': 10,
+    'xtick.labelsize': 7,
+    'ytick.labelsize': 7,
+    'legend.fontsize': 7,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'figure.constrained_layout.use': True,
+    'figure.autolayout': False,
+    'axes.xmargin': 0.02,
+    'axes.ymargin': 0.02,
+    'figure.subplot.left': 0.12,
+    'figure.subplot.right': 0.97,
+    'figure.subplot.bottom': 0.12,
+    'figure.subplot.top': 0.92,
+    'figure.dpi': 300,
+    'savefig.dpi': 300
 })
 
 
@@ -344,52 +358,98 @@ def average_distance_from_wall(masked_hist, wall_length):
     else:
         return None
 
-
-threshold = 0.3
-max_distance = 2
-wall_length = wall_lengths[wall_length_ind]
-eta = 0.4# etas[eta_ind]
-histogram,_ = get_averaged_histograms(eta, wall_length)
-print(average_distance_from_wall(find_near_region(histogram,threshold_percentage=threshold, mult_r0=max_distance), float(wall_length)))
-# print(histogram)
-# print(find_near_region(histogram))
-
-fig4, ax4 = plt.subplots(ncols = 2, figsize = (fig_width*2,fig_height))
-cax = ax4[0].imshow(find_near_region(histogram, threshold, mult_r0=max_distance).T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
-cax2 = ax4[1].imshow(histogram.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
-cbar = fig4.colorbar(cax, ax=ax4)
-
-
-
-fig5, ax5 = plt.subplots(figsize = (fig_width,fig_height))
-
-for wall_length in wall_lengths:
-    distances = []
-    deviations = []
-    for eta in etas:
-        steady_hist,_ = get_averaged_histograms(eta, wall_length)
-        mean, std = average_distance_from_wall(find_near_region(histogram,threshold_percentage=threshold), float(wall_length))
-        distances.append(mean)
-        deviations.append(std)
-
-    ax5.plot(etas, distances, label = f"l={Fraction(float(wall_length)/L).limit_denominator(3)}L")
-ax5.set_xlabel(r"$\eta$")
-ax5.set_ylabel(r"D ($R_0$)")
-ax5.legend(frameon=False)
-fig5.tight_layout()
-vmin =0
-vmax = 2
 bin_area = (L/320)**2 #check this value!
-fig6, ax6 = plt.subplots(nrows=2, ncols=1, figsize= (fig_width, fig_height*2))
-I1 = get_averaged_histograms(etas[1], wall_lengths[-3])[0].T/bin_area
-cax4 = ax6[0].imshow(I1, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto',vmin=vmin, vmax=vmax)
-ax6[0].set_xticks([])  # Remove x-axis ticks for the first subplot
-# ax6[0].set_xlabel('')  # Optionally, remove x-axis label for the first subplot
-I2 = get_averaged_histograms(etas[-1], wall_lengths[-3])[0].T/bin_area
-cax5 = ax6[1].imshow(I2, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto',vmin=vmin, vmax=vmax)
-fig6.tight_layout()
+if histogram_filters:
+    threshold = 0.3
+    max_distance = 2
+    wall_length = wall_lengths[wall_length_ind]
+    eta = 0.4# etas[eta_ind]
+    histogram,_ = get_averaged_histograms(eta, wall_length)
+    # print(average_distance_from_wall(find_near_region(histogram,threshold_percentage=threshold, mult_r0=max_distance), float(wall_length)))
+    # print(histogram)
+    # print(find_near_region(histogram))
 
-fig7, ax7 = plt.subplots(figsize = (fig_width,fig_height))
-ax7.plot(I1.mean(axis=0))
-ax7.plot(I2.mean(axis=0))
+    # Displaying the histogram with and without the filter
+    fig4, ax4 = plt.subplots(ncols = 2, figsize = (fig_width*2,fig_height))
+    cax = ax4[0].imshow(find_near_region(histogram, threshold, mult_r0=max_distance).T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+    cax2 = ax4[1].imshow(histogram.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+    cbar = fig4.colorbar(cax, ax=ax4)
+
+    ## Finding the distance based on the filter
+    fig5, ax5 = plt.subplots(figsize = (fig_width,fig_height))
+
+    for wall_length in wall_lengths:
+        distances = []
+        deviations = []
+        for eta in etas:
+            steady_hist,_ = get_averaged_histograms(eta, wall_length)
+            mean, std = average_distance_from_wall(find_near_region(histogram,threshold_percentage=threshold), float(wall_length))
+            distances.append(mean)
+            deviations.append(std)
+
+        ax5.plot(etas, distances, label = f"l={Fraction(float(wall_length)/L).limit_denominator(3)}L")
+    ax5.set_xlabel(r"$\eta$")
+    ax5.set_ylabel(r"D ($R_0$)")
+    ax5.legend(frameon=False)
+    fig5.tight_layout()
+
+    vmin =0
+    vmax = 2
+    fig6, ax6 = plt.subplots(nrows=2, ncols=1, figsize= (fig_width, fig_height*2))
+    I1 = get_averaged_histograms(etas[1], wall_lengths[-3])[0].T/bin_area
+    cax4 = ax6[0].imshow(I1, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto',vmin=vmin, vmax=vmax)
+    ax6[0].set_xticks([])  # Remove x-axis ticks for the first subplot
+    # ax6[0].set_xlabel('')  # Optionally, remove x-axis label for the first subplot
+    I2 = get_averaged_histograms(etas[-1], wall_lengths[-3])[0].T/bin_area
+    cax5 = ax6[1].imshow(I2, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto',vmin=vmin, vmax=vmax)
+    fig6.tight_layout()
+
+
+def count_iterations(target_eta, target_wall_length):
+    """Count how many iterations were averaged for a specific eta and wall_length"""
+    count = 0
+    folder_path = dir + f"/{dir_starter}_{target_wall_length}_10000"
+    
+    for item in os.listdir(folder_path):
+        if item.startswith("steady_histogram_data") and item.endswith(".npz"):
+            parts = item.split("_")
+            if len(parts) >= 4:
+                try:
+                    eta = float(parts[-2])
+                    if eta == target_eta:
+                        count += 1
+                except ValueError:
+                    continue
+    
+    return max(1, count)
+
+if Density_profile:
+    fig7, ax7 = plt.subplots(figsize = (fig_width,fig_height))
+
+    sim_params = read_summary_file(dir + f"/{dir_starter}_{wall_lengths[-1]}_10000/simulation_parameters_{wall_lengths[-1]}.txt")
+    nsteps = int(sim_params["Total number of steps"])
+    N = int(sim_params["Number of particles (N)"])
+    steady_state_steps = 5e3
+
+
+    for eta in [0.2,0.3, 0.4,0.6]:
+        histogram = get_averaged_histograms(eta, wall_lengths[-1])[0].T
+        # Proper normalization:
+            # 1. Divide by bin_area to get density per area
+            # 2. Divide by number of particles to normalize by particle count
+            # 3. Divide by number of time steps to get average over time
+            # 4. Divide by number of iterations that were averaged
+        iterations_count = count_iterations(eta, wall_lengths[-1])
+
+        I1 = histogram/(bin_area*N*steady_state_steps* iterations_count)
+        # I1 /=I1.mean()
+        x = np.linspace(0,L, I1.shape[0])
+        ax7.plot(x,I1.mean(axis=0),label = r"$\eta$: " +f"{eta}")
+
+    ax7.legend(frameon = False, loc = "lower right")
+    ax7.set_xticks(np.linspace(0, L, 5))
+    ax7.set_xlim(0,L)
+    ax7.set_ylabel(r"Density ($R_0$)")
+    ax7.set_xlabel(r"x ($R_0$)")
+
 plt.show()
