@@ -7,19 +7,20 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 import numba
-from pycircular.stats import periodic_mean_std
 import os
+#Save the end state as a .png
+save_fig = False
 
 # parameters
-L = 50 # size of box
-rho = 1 # density
+L = 64 # size of box
+rho = 1.2 # density
 N = int(rho * L**2) # number of particles
-r0 = 0.65 # interaction radius
+r0 = 1 # interaction radius
 deltat = 1.0 # time step
 velocity_factor = 0.2
 v0 = r0 / deltat * velocity_factor # velocity
 iterations = 1000 # animation frames
-eta = 0.1  # noise/randomness
+eta = 0.15  # noise/randomness
 max_num_neighbours= 100
 
 
@@ -238,19 +239,67 @@ def animate(frames, wall_yMax, wall_yMin):
     return qv,
  
 ## Showing the animation
-figwidth = 6
-totalheight = 6
-fig, ax = plt.subplots(figsize = (figwidth, totalheight))   
+text_width = 3.25  # inches (single column width)
+fig_width = text_width
+fig_height = 0.8 * fig_width  # for standard plots
+width_2_subplot = fig_width/2 + 0.25  # for side-by-side subplots
+height_2_subplot = 0.75 * width_2_subplot
+height_cbar_2_subplot = 0.75 * width_2_subplot
+plt.rcParams.update({
+    'font.size': 8,
+    'axes.labelsize': 9,
+    'axes.titlesize': 10,
+    'xtick.labelsize': 7,
+    'ytick.labelsize': 7,
+    'legend.fontsize': 7,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'figure.constrained_layout.use': True,
+    'figure.autolayout': False,
+    'axes.xmargin': 0.02,
+    'axes.ymargin': 0.02,
+    'figure.subplot.left': 0.12,
+    'figure.subplot.right': 0.97,
+    'figure.subplot.bottom': 0.12,
+    'figure.subplot.top': 0.92,
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+})
+fig, ax = plt.subplots(figsize = (fig_width, fig_width))   
 ax = plot_x_wall(ax, boundary = False)
-ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
+# ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 # Add a color bar
 # cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
 # cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 # cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
+for i in range(0,1500):
+    animate(i,wall_yMax, wall_yMin)
 ani = FuncAnimation(fig, animate, frames= iterations, interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
-ax.legend(loc = "upper right")
-ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
+# ax.legend(loc = "upper right")
+ax.set_aspect("equal")
+ax.set_xlabel(r"x ($R_0$)")
+ax.set_ylabel(r"y ($R_0$)")
+ax.set_yticks(np.linspace(0,L,5))
+ax.set_xticks(np.linspace(0,L,5))
+ax.set_ylim(0,L)
+ax.set_xlim(0,L)
+# ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
 plt.show()
 # np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
+
+if save_fig:
+    fig, ax = plt.subplots(figsize = (fig_width*2/3, fig_width*2/3))   
+    ax = plot_x_wall(ax, boundary = False)
+    # ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
+    qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
+    # ax.legend(loc = "upper right")
+    ax.set_aspect("equal")
+    ax.set_xlabel(r"x ($R_0$)")
+    ax.set_ylabel(r"y ($R_0$)")
+    ax.set_yticks(np.linspace(0,L,5))
+    ax.set_xticks(np.linspace(0,L,5))
+    ax.set_ylim(0,L)
+    ax.set_xlim(0,L)
+    fig.savefig(f"figures/snapshot_{(wall_yMax-wall_yMin)/L:.2f}_.png")
 
