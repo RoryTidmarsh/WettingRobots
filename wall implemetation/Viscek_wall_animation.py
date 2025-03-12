@@ -10,7 +10,7 @@ import numba
 import os
 import tqdm
 #Save the end state as a .png
-save_fig = True
+save_fig = False
 
 # parameters
 L = 64 # size of box
@@ -32,7 +32,7 @@ wall_yMax = L/2 +L/2
 wall_distance = r0
 turn_factor = 0.2
 step_num = 0
-x1, x2 = 0, L
+# x1, x2 = 0, L
 
 # initialise positions and angles
 positions = np.random.uniform(0, L, size = (N, 2))
@@ -204,10 +204,10 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
             # i.e. there is no wall
             wall_turn = 0
         else:
-            # wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax) 
-            wall1 = varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin, wall_x = x1)
-            wall2 = varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin, wall_x = x2)
-            wall_turn = wall1 + wall2
+            wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax) 
+            # wall1 = varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin, wall_x = x1)
+            # wall2 = varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin, wall_x = x2)
+            # wall_turn = wall1 + wall2
             
         noise = eta * np.random.uniform(-np.pi, np.pi)
         # if there are neighbours, calculate average angle      
@@ -272,13 +272,15 @@ plt.rcParams.update({
     'savefig.dpi': 300,
 })
 fig, ax = plt.subplots(figsize = (fig_width, fig_width))   
-# if wall_yMin != wall_yMax:
-#     ax = plot_x_wall(ax, boundary = False) 
-ax.axvline(x=x1,ymax=wall_yMax, ymin=wall_yMin, color = "black", linestyle = "--", lw = 2)
-ax.axvline(x=x2,ymax=wall_yMax, ymin=wall_yMin, color = "black", linestyle = "--", lw = 2)
+if wall_yMin != wall_yMax:
+    ax = plot_x_wall(ax, boundary = False) 
+## Double wall at the endgs of the system
+# ax.axvline(x=x1,ymax=wall_yMax, ymin=wall_yMin, color = "black", linestyle = "--", lw = 2)
+# ax.axvline(x=x2,ymax=wall_yMax, ymin=wall_yMin, color = "black", linestyle = "--", lw = 2)
+
 # ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-# Add a color bar
+## Add a color bar
 # cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
 # cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 # cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
@@ -304,6 +306,8 @@ if save_fig:
     fig, ax = plt.subplots(figsize = (fig_width*2/3, fig_width*2/3)) 
     if wall_yMin != wall_yMax:
         ax = plot_x_wall(ax, boundary = False) 
+        # ax.axvline(x=x1,ymax=wall_yMax, ymin=wall_yMin, color = "b", lw = 2)
+        # ax.axvline(x=x2,ymax=wall_yMax, ymin=wall_yMin, color = "b", lw = 2)
     # ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
     qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
     if wall_yMax - wall_yMin == L:
@@ -315,5 +319,5 @@ if save_fig:
     ax.set_xticks(np.linspace(0,L,5))
     ax.set_ylim(0,L)
     ax.set_xlim(0,L)
-    fig.savefig(f"figures/2walls_snapshot_{(wall_yMax-wall_yMin)/L:.2f}_.png")
+    fig.savefig(f"figures/snapshot_{(wall_yMax-wall_yMin)/L:.2f}_.png")
 

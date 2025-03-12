@@ -64,17 +64,6 @@ hbins = int(L*5/r0)
 hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False)
 
 ### Streamplot setup
-old_pos = positions.copy()
-old_pos = positions.copy()
-nbins=int(L/2)+1
-bin_edges = np.linspace(0,L,nbins) 
-centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
-X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
-dr = positions-old_pos  # Change _streamin pos_streamiiton
-_Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
-_Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
-counts = np.zeros((nbins-1,nbins-1)) #initialising the counts
-
 bins = int(L / r0)
 tot_vx_all = np.zeros((bins, bins)) # velocity x components for all particles
 tot_vy_all = np.zeros((bins, bins))
@@ -287,22 +276,12 @@ def animate(frames, arc_angle, start_angle=-arc_angle/2):
     #Add positions to the 2D histogram for position
     hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
 
-    global _Hx_stream, _Hy_stream, counts
+    global tot_vx_all, tot_vy_all, counts_all, vxedges, vyedges 
     #Add change in position to the 2D histograms for streamplot
     dr = new_positions-positions  # Change in position
     dr = np.where(dr >5.0, dr-10, dr)
     dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-    _Hx_stream += H_stream
-    H_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-    _Hy_stream +=H_stream
-    step_counts = np.histogram2d(old_pos[:,0],old_pos[:,1], bins=(bin_edges,bin_edges))[0] #initialising the counts
-
-    # New Quiver Plots
-    global tot_vx_all, tot_vy_all, counts_all, vxedges, vyedges 
     tot_vx, tot_vy = velocity_flux(positions, angles, v0)
-
-
     # histograms for the x and y velocity components
     H_vx, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,0])
     H_vy, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,1])
@@ -310,6 +289,7 @@ def animate(frames, arc_angle, start_angle=-arc_angle/2):
     tot_vx_all += H_vx
     tot_vy_all += H_vy
     counts_all += counts # hist of number of particles
+    
     # Update global variables
     positions = new_positions.copy()
     angles = new_angles.copy()
@@ -384,7 +364,9 @@ def output_parameters(file_dir):
 nsteps = 10000
 current_dir = os.path.dirname(__file__)
 
+# Skipping to the relevant angle and iteration that the simulation stopped at
 skip_angle = 2*np.pi
+iteration_skip = 0
 # # Loop for each wall length
 for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:]:
     arc_angle = float(arc_angle)
@@ -401,21 +383,28 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
         continue
     # # Creating multiple iterations to be averaged for the alignment
     for J in range(4):
-        if J <3 and arc_angle <= skip_angle:
+        if J <iteration_skip and arc_angle <= skip_angle:
             continue
         # initialise positions and angles for the new situation
         positions = np.random.uniform(0, L, size = (N, 2))
         angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
         # Creating the inital storage for each plot
-        hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) #Position histogram
-        _Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
-        _Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
-        counts = np.zeros((nbins-1,nbins-1)) #initialising the counts
+        # Density Histogram
+        hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) 
+        ## Direction and Spread plots
         av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
         average_angles = [av_angle] # Create arrays witht the initial angles in s
         average_orientations = [average_orientation(angles)]
         std_angles = [angle_std]
+        ### Streamplot setup
+        bins = int(L / r0)
+        tot_vx_all = np.zeros((bins, bins)) # velocity x components for all particles
+        tot_vy_all = np.zeros((bins, bins))
+        counts_all = np.zeros((bins, bins)) # number of particles in cell
+        vxedges = np.linspace(0, 1, bins + 1) # bin edges for meshgrid
+        vyedges = np.linspace(0, 1, bins + 1)
+        X,Y = np.meshgrid(vxedges[:-1],vyedges[:-1]) # meshgrid for quiver plot
 
         if nsteps < 3000:
             transient_cutoff = nsteps
@@ -428,20 +417,14 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
             # store all the data from the transient phase            
             if i==transient_cutoff:
                 transient_hist_pos = hist_pos.copy()
-                transient_Hx_stream = _Hx_stream.copy()
-                transient_Hy_stream = _Hy_stream.copy()
-                counts_transient = counts.copy()
                 transient_tot_vx_all = np.zeros_like(tot_vx_all)
                 transient_tot_vy_all = np.zeros_like(tot_vy_all)
                 transient_counts_all = np.zeros_like(counts_all)
 
 
             # reset the data for the steady state
-            if i==3000:
+            if i==transient_cutoff+1:
                 hist_pos = np.zeros_like(hist_pos)
-                _Hx_stream = np.zeros_like(_Hx_stream)
-                _Hy_stream = np.zeros_like(_Hy_stream)
-                counts = np.zeros_like(counts)
                 tot_vx_all = np.zeros_like(tot_vx_all)
                 tot_vy_all = np.zeros_like(tot_vy_all)
                 counts_all = np.zeros_like(counts_all)
@@ -449,14 +432,11 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
         ## Saving into npz floats for later analysis
         np.savez_compressed(f'{savedir}/steady_histogram_data_{arc_angle/np.pi:.2f}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
         np.savez_compressed(f'{savedir}/transient_histogram_data_{arc_angle/np.pi:.2f}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
-        
-        # Old streamplot saving
-        # np.savez_compressed(f'{savedir}/steady_stream_plot_{arc_angle/np.pi:.2f}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream,counts = counts)
-        # np.savez_compressed(f'{savedir}/transient_stream_plot_{arc_angle/np.pi:.2f}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream,counts = counts_transient)
 
         # New streamplot saving
         np.savez_compressed(f'{savedir}/steady_stream_plot_{arc_angle/np.pi:.2f}_{J}.npz', X = X, Y= Y, X_hist = tot_vx_all, Y_hist = tot_vy_all,counts = counts_all)
         np.savez_compressed(f'{savedir}/transient_stream_plot_{arc_angle/np.pi:.2f}_{J}.npz', X = X, Y= Y, X_hist = transient_tot_vx_all, Y_hist = transient_tot_vy_all, counts = transient_counts_all)
+        # Direction and spread
         np.savez_compressed(f'{savedir}/alignment_{arc_angle/np.pi:.2f}_{J}.npz', angles = average_angles, std = std_angles)
         np.savez_compressed(f'{savedir}/orientations_{arc_angle/np.pi:.2f}_{J}.npz', orientations = average_orientations) 
         ## Saving positions and orientations for setup for recreation of the system
@@ -464,8 +444,9 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
 
         # Reset the data storage arrays
         hist_pos = np.zeros_like(hist_pos)
-        _Hx_stream = np.zeros_like(_Hx_stream)
-        _Hy_stream = np.zeros_like(_Hy_stream)
+        tot_vx_all = np.zeros_like(tot_vx_all)
+        tot_vy_all = np.zeros_like(tot_vy_all)
+        counts_all = np.zeros_like(counts_all)
         average_angles = []
         average_orientations = []
         std_angles = []

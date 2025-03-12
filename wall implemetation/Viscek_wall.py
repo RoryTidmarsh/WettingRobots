@@ -57,19 +57,17 @@ average_orientations = [average_orientation(angles)]
 
 
 ###Average position in a 2D histogram over time
-bins = int(L*5/r0)
-hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False)
+hbins = int(L*5/r0)
+hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False)
 
 ### Streamplot setup
-old_pos = positions.copy()
-old_pos = positions.copy()
-nbins=L+1
-bin_edges = np.linspace(0,L,nbins) 
-centres = bin_edges[:-1]+0.5*(bin_edges[1]-bin_edges[0]) # Centers for streamplot
-X,Y = np.meshgrid(centres,centres) #meshgrid for streamplot
-dr = positions-old_pos  # Change _streamin pos_streamiiton
-_Hx_stream, edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) #initialising the histograms
-_Hy_stream,edgex_stream,edgey_stream = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))
+bins = int(L / r0)
+tot_vx_all = np.zeros((bins, bins)) # velocity x components for all particles
+tot_vy_all = np.zeros((bins, bins))
+counts_all = np.zeros((bins, bins)) # number of particles in cell
+vxedges = np.linspace(0, 1, bins + 1) # bin edges for meshgrid
+vyedges = np.linspace(0, 1, bins + 1)
+X,Y = np.meshgrid(vxedges[:-1],vyedges[:-1]) # meshgrid for quiver plot
 
 #### Wall funcitons ####
 @numba.njit
@@ -280,44 +278,24 @@ def animate(frames, wall_yMax, wall_yMin):
     #Add positions to the 2D histogram for position
     hist_pos += np.histogram2d(new_positions[:, 0], new_positions[:,1], bins= [xedges,yedges], density = False)[0]
 
-    global _Hx_stream, _Hy_stream
+    global tot_vx_all, tot_vy_all, counts_all, vxedges, vyedges 
     #Add change in position to the 2D histograms for streamplot
     dr = new_positions-positions  # Change in position
     dr = np.where(dr >5.0, dr-10, dr)
     dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
-    H_stream,_,_ = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges))  # dr_x wieghted histogram
-    _Hx_stream += H_stream
-    H_stream,_,_ = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges))  # dr_y wieghted histogram
-    _Hy_stream +=H_stream
-
-
+    # histograms for the x and y velocity components
+    H_vx, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,0])
+    H_vy, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,1])
+    counts, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins)
+    tot_vx_all += H_vx
+    tot_vy_all += H_vy
+    counts_all += counts # hist of number of particles
+    
     # Update global variables
     positions = new_positions.copy()
     angles = new_angles.copy()
     step_num +=1
-#     #### Animation - Uncomment up to the next "###" to see the animation ###
-#     #Update the quiver plot  
-#     qv.set_offsets(positions)
-#     qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-#     return qv,
- 
-# ## Showing the animation
-# figwidth = 5.5
-# totalheight = 4.675
-# fig, ax = plt.subplots(figsize = (figwidth, totalheight))   
-# # ax = plot_x_wall(ax, boundary = False)
-# ax.set_title(f"Viscek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
-# qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-# # Add a color bar
-# cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
-# cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
-# cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
-# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True, fargs = (0,0))
-# ax.legend(loc = "upper right")
-# # ani.save(f'figures/Vicek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
-# plt.show()
-# np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
 
 ### SAVING DATA AS .npz FILES ###
 #finding the current working directory
@@ -365,7 +343,7 @@ start_l_ratio = 1
 start_eta = 0.3
 start_J = 6
 # # Loop for each wall length
-for l_ratio in [1,1/3,2/3]:#np.linspace(0,1,6)[1::2]:
+for l_ratio in [1,1/3,2/3,0]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
     l_ratio = float(l_ratio)
@@ -376,14 +354,17 @@ for l_ratio in [1,1/3,2/3]:#np.linspace(0,1,6)[1::2]:
     
 # Creating a directory for this wallsize to fall into
     exp_dir = ["/wall_size_experiment/128wall", "/noise_experiment", "/wall_size_experiment/50wall"]
-    savedir = current_dir + exp_dir[1] + f"/DistanceNoise{int(L)}_{l}_{nsteps}"
+    savedir = current_dir + exp_dir[0] + f"/testSave{int(L)}_{l}_{nsteps}"
     # delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
+
+    if l_ratio < start_l_ratio:
+        continue
+
     for eta in [0.2,0.3,0.4,0.6]:#np.linspace(0.1, 0.7, 7):#[0.05,0.1,0.125,0.15,0.175,0.2,0.225]:#
-        # if l_ratio == start_l_ratio and eta < start_eta:
-        #         continue
-            
+        if eta < start_eta and l_ratio <= start_l_ratio:
+            continue
         for J in range(6,10):
             if l_ratio == start_l_ratio and eta == start_eta and J < start_J:
                 continue
@@ -392,13 +373,21 @@ for l_ratio in [1,1/3,2/3]:#np.linspace(0,1,6)[1::2]:
             angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
             # Creating the inital storage for each plot
-            hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= bins, density = False) #Position histogram
-            _Hx_stream, _,_ = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,0], bins=(bin_edges,bin_edges)) # stream plot histogram
-            _Hy_stream,_,_ = np.histogram2d(old_pos[:,0],old_pos[:,1],weights=dr[:,1], bins=(bin_edges,bin_edges)) # stream plot histogram
+            # Density Histogram
+            hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) 
+            ## Direction and Spread plots
             av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
             average_angles = [av_angle] # Create arrays witht the initial angles in s
-            std_angles = [angle_std]
             average_orientations = [average_orientation(angles)]
+            std_angles = [angle_std]
+            ### Streamplot setup
+            bins = int(L / r0)
+            tot_vx_all = np.zeros((bins, bins)) # velocity x components for all particles
+            tot_vy_all = np.zeros((bins, bins))
+            counts_all = np.zeros((bins, bins)) # number of particles in cell
+            vxedges = np.linspace(0, 1, bins + 1) # bin edges for meshgrid
+            vyedges = np.linspace(0, 1, bins + 1)
+            X,Y = np.meshgrid(vxedges[:-1],vyedges[:-1]) # meshgrid for quiver plot
             
 
             if nsteps < 3000:
@@ -412,28 +401,30 @@ for l_ratio in [1,1/3,2/3]:#np.linspace(0,1,6)[1::2]:
                 # store all the data from the transient phase            
                 if i==transient_cutoff:
                     transient_hist_pos = hist_pos.copy()
-                    # transient_Hx_stream = _Hx_stream.copy()
-                    # transient_Hy_stream = _Hy_stream.copy()
-                    transient_orientations = average_orientations.copy()
+                    transient_tot_vx_all = np.zeros_like(tot_vx_all)
+                    transient_tot_vy_all = np.zeros_like(tot_vy_all)
+                    transient_counts_all = np.zeros_like(counts_all)
+
 
                 # reset the data for the steady state
-                if i==5000:
+                if i==transient_cutoff+1:
                     hist_pos = np.zeros_like(hist_pos)
-                    # _Hx_stream = np.zeros_like(_Hx_stream)
-                    # _Hy_stream = np.zeros_like(_Hy_stream)
-                    average_orientations = []
+                    tot_vx_all = np.zeros_like(tot_vx_all)
+                    tot_vy_all = np.zeros_like(tot_vy_all)
+                    counts_all = np.zeros_like(counts_all)
 
             # Saving into npz floats for later analysis
-            # np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
-            # np.savez_compressed(f'{savedir}/transient_histogram_data_{l}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
-            # np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = _Hx_stream, Y_hist = _Hy_stream)
-            # np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_Hx_stream, Y_hist = transient_Hy_stream)
-            # np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
+            np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
+            np.savez_compressed(f'{savedir}/transient_histogram_data_{l}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
+            np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = tot_vx_all, Y_hist = tot_vy_all, counts = counts_all)
+            np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_tot_vx_all, Y_hist = transient_tot_vy_all, counts = transient_counts_all)
+            np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
 
             # Noise experiment
-            np.savez_compressed(f'{savedir}/orientations_{eta}_{J}.npz', orientations = average_orientations, transient_orientations = transient_orientations, noise = eta) 
-            # Name change of histogram for varying eta
-            np.savez_compressed(f'{savedir}/steady_histogram_data_{eta}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
+            np.savez_compressed(f'{savedir}/orientations_{eta}_{J}.npz', orientations = average_orientations, noise = eta) 
+
+            ## Name change of histogram for varying eta #### FOR NOISE CHANGE EXP ####
+            # np.savez_compressed(f'{savedir}/steady_histogram_data_{eta}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
             # np.savez_compressed(f'{savedir}/transient_histogram_data_{eta}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
 
             ## Saving positions and orientations for setup for recreation of the system
@@ -441,10 +432,9 @@ for l_ratio in [1,1/3,2/3]:#np.linspace(0,1,6)[1::2]:
             
             # Reset the data storage arrays
             hist_pos = np.zeros_like(hist_pos)
-            _Hx_stream = np.zeros_like(_Hx_stream)
-            _Hy_stream = np.zeros_like(_Hy_stream)
             average_angles = []
             std_angles = []
-
-            
+            tot_vx_all = np.zeros_like(tot_vx_all)
+            tot_vy_all = np.zeros_like(tot_vy_all)
+            counts_all = np.zeros_like(counts_all)            
             average_orientations = []
