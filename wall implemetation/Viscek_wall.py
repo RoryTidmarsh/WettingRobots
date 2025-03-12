@@ -361,9 +361,11 @@ def output_parameters(file_dir):
 nsteps = 10000
 current_dir = os.path.dirname(__file__)
 
-
+start_l_ratio = 1
+start_eta = 0.3
+start_J = 6
 # # Loop for each wall length
-for l_ratio in [1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
+for l_ratio in [1,1/3,2/3]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
     l_ratio = float(l_ratio)
@@ -374,21 +376,17 @@ for l_ratio in [1/3,2/3,1.0]:#np.linspace(0,1,6)[1::2]:
     
 # Creating a directory for this wallsize to fall into
     exp_dir = ["/wall_size_experiment/128wall", "/noise_experiment", "/wall_size_experiment/50wall"]
-    savedir = current_dir + exp_dir[1] + f"/2DistanceNoise{int(L)}_{l}_{nsteps}"
+    savedir = current_dir + exp_dir[1] + f"/DistanceNoise{int(L)}_{l}_{nsteps}"
     # delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
-    for eta in np.linspace(0.1,0.7,7):#[0.25,0.3,0.35]:
-        if (l_ratio == 1/3) and (eta < 0.2):
-            continue
-        
-        # # Looping over the noise
-        # for eta in [0.225,0.275,0.325,0.375]:#[0.05,0.15,0.25,0.35,0.45]:#np.linspace(0.1,0.7, 7):
-
-        # # Creating multiple iterations to be averaged for the alignment
-        for J in range(6):
-            if (l_ratio == 1/3) and (eta <= 0.2) and (J < 3):
-                continue  # Skip the first three iterations
+    for eta in [0.2,0.3,0.4,0.6]:#np.linspace(0.1, 0.7, 7):#[0.05,0.1,0.125,0.15,0.175,0.2,0.225]:#
+        # if l_ratio == start_l_ratio and eta < start_eta:
+        #         continue
+            
+        for J in range(6,10):
+            if l_ratio == start_l_ratio and eta == start_eta and J < start_J:
+                continue
             # initialise positions and angles for the new situation
             positions = np.random.uniform(0, L, size = (N, 2))
             angles = np.random.uniform(-np.pi, np.pi, size = N) 

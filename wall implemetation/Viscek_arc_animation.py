@@ -9,6 +9,7 @@ import matplotlib.patches as patches
 import numba
 from pycircular.stats import periodic_mean_std
 import os
+from tqdm import tqdm
 
 # parameters
 L = 50 # size of box
@@ -25,7 +26,7 @@ max_num_neighbours= 100
 
 # Curved wall parameters
 radius = L/3    # radius of the circle
-arc_angle = np.pi  # length of arc in radians (pi/2 = quarter circle)
+arc_angle = np.pi/3*2  # length of arc in radians (pi/2 = quarter circle)
 start_angle = -arc_angle/2#-arc_angle/2  # starting angle of the arc
 center_x = L/2 # x-coordinate of circle center
 center_y = L/2  # y-coordinate of circle center
@@ -263,7 +264,7 @@ def animate(frames,arc_angle):
     positions = new_positions.copy()
     angles = new_angles.copy()
     step_num +=1
-    print(step_num)
+    # print(step_num)
     
     #Update the quiver plot  
     qv.set_offsets(positions)
@@ -285,7 +286,8 @@ cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
 ax = plot_arc(ax, boundary=True)
-# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), fargs=arc_angle, interval = 5, blit = True)
+for _ in tqdm(range(2000)):
+    animate(_, arc_angle)
 ani = FuncAnimation(fig, animate, frames=range(1, int(iterations/10)), fargs=(arc_angle,), interval=5, blit=True)
 ax.legend(loc = "upper right")
 # ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)

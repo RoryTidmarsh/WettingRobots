@@ -6,7 +6,7 @@ from fractions import Fraction
 
 dir = str(os.getcwd())+ "/wall implemetation/noise_experiment"
 filenames = os.listdir(dir)
-dir_starter = "DistanceNoise64"
+dir_starter = "2DistanceNoise64"
 # print(filenames)
 cmap = "hsv"
 L = 64
@@ -14,12 +14,12 @@ r0 = 1
 
 
 
-histograms = True
-timeav_noise = False
+histograms = False
+timeav_noise = True
 single_noise = False
 histogram_filters = False # Initial attempt to find the distance from the wall
 Density_profile = True # Finind the distance from the denisty profile away from the wall
-
+# save = False
 
 text_width = 3.25  # inches (single column width)
 fig_width = text_width
@@ -45,9 +45,11 @@ plt.rcParams.update({
     'figure.subplot.bottom': 0.12,
     'figure.subplot.top': 0.92,
     'figure.dpi': 300,
-    'savefig.dpi': 300
+    'savefig.dpi': 300,
+    # "font.family": "serif",
+    # "font.serif": ["Computer Modern Roman"],
+    # "mathtext.fontset": "cm",
 })
-
 
 def read_summary_file(filepath):
     summary_data = {}
@@ -110,17 +112,21 @@ def compress_data():
         for eta in etas:
             matching_orientations = []
             for data in orientation_data:
-                # temp_data = {"wall_length": wall_length, "eta": eta}
-                # temp_orientations = []
                 if (data["wall_length"] == wall_length) and (data["eta"]==eta):
-                    matching_orientations.append( data["orientations"])
+                    matching_orientations.append(data["orientations"])
                 
             if matching_orientations:
-                # print("Found matching orientations for wall length: ", wall_length, " and eta: ", eta)
+                # Find the minimum length to ensure consistent array shapes
+                min_length = min(len(orient) for orient in matching_orientations)
+                
+                # Truncate all arrays to the minimum length
+                truncated_orientations = [orient[:min_length] for orient in matching_orientations]
+                
+                # Now we can safely create a NumPy array and calculate the mean
                 temp_data = {
                     "wall_length": wall_length,
                     "eta": eta,
-                    "orientations": np.array(matching_orientations).mean(axis=0)
+                    "orientations": np.array(truncated_orientations).mean(axis=0)
                 }
                 compressed_data.append(temp_data)
                 
@@ -162,6 +168,8 @@ if timeav_noise:
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
+    fig.savefig(f"figures/noise_dependance.png")
+
 
 # Reading an indivdual case
 wall_length = wall_lengths[2]
@@ -193,14 +201,7 @@ def get_averaged_histograms(target_eta, target_wall_length):
     
     Returns:
     tuple: (averaged_steady_histogram, averaged_transient_histogram)
-    """
-    import os
-    import numpy as np
-    
-    # Set directory
-    dir = str(os.getcwd()) + "/wall implemetation/noise_experiment"
-    dir_starter = "DistanceNoise64"
-    
+    """    
     steady_histograms = []
     transient_histograms = []
     
@@ -231,9 +232,20 @@ def get_averaged_histograms(target_eta, target_wall_length):
                             elif parts[0] == "transient":
                                 transient_histograms.append(histogram_data)
     
-    # Average the histograms if any were found
-    averaged_steady = np.mean(steady_histograms, axis=0) if steady_histograms else None
-    averaged_transient = np.mean(transient_histograms, axis=0) if transient_histograms else None
+    # Ensure all histograms have the same shape
+    if steady_histograms:
+        min_shape = min(hist.shape for hist in steady_histograms)
+        steady_histograms = [hist[:min_shape[0], :min_shape[1]] for hist in steady_histograms]
+        averaged_steady = np.mean(steady_histograms, axis=0)
+    else:
+        averaged_steady = None
+
+    if transient_histograms:
+        min_shape = min(hist.shape for hist in transient_histograms)
+        transient_histograms = [hist[:min_shape[0], :min_shape[1]] for hist in transient_histograms]
+        averaged_transient = np.mean(transient_histograms, axis=0)
+    else:
+        averaged_transient = None
     
     return averaged_steady, averaged_transient
 
@@ -244,10 +256,6 @@ def get_all_histogram_params():
     Returns:
     tuple: (available_etas, available_wall_lengths)
     """
-    import os
-    
-    dir = str(os.getcwd()) + "/wall implemetation/noise_experiment"
-    dir_starter = "DistanceNoise64"
     
     available_etas = set()
     available_wall_lengths = set()
@@ -426,20 +434,23 @@ def count_iterations(target_eta, target_wall_length):
 if Density_profile:
     fig7, ax7 = plt.subplots(figsize = (fig_width,fig_height))
 
-    sim_params = read_summary_file(dir + f"/{dir_starter}_{wall_lengths[-1]}_10000/simulation_parameters_{wall_lengths[-1]}.txt")
+    wall_length = wall_lengths[-1]
+    sim_params = read_summary_file(dir + f"/{dir_starter}_{wall_length}_10000/simulation_parameters_{wall_length}.txt")
+    wall_label = float(wall_length)
     nsteps = int(sim_params["Total number of steps"])
     N = int(sim_params["Number of particles (N)"])
     steady_state_steps = 5e3
 
 
     for eta in [0.2,0.3, 0.4,0.6]:
-        histogram = get_averaged_histograms(eta, wall_lengths[-1])[0].T
+        histogram = get_averaged_histograms(eta, wall_length)[0].T
         # Proper normalization:
             # 1. Divide by bin_area to get density per area
             # 2. Divide by number of particles to normalize by particle count
             # 3. Divide by number of time steps to get average over time
             # 4. Divide by number of iterations that were averaged
-        iterations_count = count_iterations(eta, wall_lengths[-1])
+        iterations_count = count_iterations(eta, wall_length)
+        print(iterations_count)
 
         I1 = histogram/(bin_area*N*steady_state_steps* iterations_count)
         # I1 /=I1.mean()
@@ -451,5 +462,9 @@ if Density_profile:
     ax7.set_xlim(0,L)
     ax7.set_ylabel(r"Density ($R_0$)")
     ax7.set_xlabel(r"x ($R_0$)")
+    # ax7.grid()
+    # ax7.axhline(y=2.5e-5, linestyle="--", color="grey", alpha = 0.5)
+    fig7.tight_layout()
+    fig7.savefig(f"figures/density_profile_{wall_label/L:.2f}.png")
 
 plt.show()

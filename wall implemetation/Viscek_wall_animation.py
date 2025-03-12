@@ -8,8 +8,9 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 import numba
 import os
+import tqdm
 #Save the end state as a .png
-save_fig = False
+save_fig = True
 
 # parameters
 L = 64 # size of box
@@ -26,8 +27,8 @@ max_num_neighbours= 100
 
 # Defining parameters for a wall only in the x direction.
 wall_x = L/2
-wall_yMin = L/2 -L/3
-wall_yMax = L/2 +L/3
+wall_yMin = L/2 #-L/2
+wall_yMax = L/2 #+L/2
 wall_distance = r0
 turn_factor = 0.2
 step_num = 0
@@ -231,7 +232,7 @@ def animate(frames, wall_yMax, wall_yMin):
     positions = new_positions.copy()
     angles = new_angles.copy()
     step_num +=1
-    print(step_num)
+    # print(step_num)
     
     #Update the quiver plot  
     qv.set_offsets(positions)
@@ -266,17 +267,22 @@ plt.rcParams.update({
     'savefig.dpi': 300,
 })
 fig, ax = plt.subplots(figsize = (fig_width, fig_width))   
-ax = plot_x_wall(ax, boundary = False)
+if wall_yMin != wall_yMax:
+    ax = plot_x_wall(ax, boundary = False) 
 # ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
 qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
 # Add a color bar
 # cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
 # cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 # cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
-for i in range(0,1500):
-    animate(i,wall_yMax, wall_yMin)
+
+for i in tqdm.tqdm(range(0, 1500)):
+    animate(i, wall_yMax, wall_yMin)
+# for i in range(0,1500):
+#     animate(i,wall_yMax, wall_yMin)
 ani = FuncAnimation(fig, animate, frames= iterations, interval = 5, blit = True, fargs = (wall_yMax,wall_yMin))
-# ax.legend(loc = "upper right")
+if wall_yMax - wall_yMin == L:
+    ax.legend(loc = "upper right")
 ax.set_aspect("equal")
 ax.set_xlabel(r"x ($R_0$)")
 ax.set_ylabel(r"y ($R_0$)")
@@ -289,11 +295,13 @@ plt.show()
 # np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
 
 if save_fig:
-    fig, ax = plt.subplots(figsize = (fig_width*2/3, fig_width*2/3))   
-    ax = plot_x_wall(ax, boundary = False)
+    fig, ax = plt.subplots(figsize = (fig_width*2/3, fig_width*2/3)) 
+    if wall_yMin != wall_yMax:
+        ax = plot_x_wall(ax, boundary = False) 
     # ax.set_title(f"Vicsek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
     qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-    # ax.legend(loc = "upper right")
+    if wall_yMax - wall_yMin == L:
+        ax.legend(loc = "upper right")
     ax.set_aspect("equal")
     ax.set_xlabel(r"x ($R_0$)")
     ax.set_ylabel(r"y ($R_0$)")
