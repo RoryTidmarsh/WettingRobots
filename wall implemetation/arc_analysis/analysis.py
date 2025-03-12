@@ -42,7 +42,7 @@ plt.rcParams.update({
 
 histograms = False
 stream = True
-quiver_plot = True
+quiver_plot = False
 
 def read_summary_file(filepath):
     summary_data = {}
@@ -156,7 +156,7 @@ if histograms:
     # cbar= fig.colorbar(cax, ax=ax)
     # cbar.set_label("Density")
 
-def stream_plot(angle, iteration, phase = "steady", ax=None, density = 1):
+def stream_plot(angle, iteration, phase = "steady", ax=None, density = 1, *args, **kwargs):
     valid_phases = ["transient", "steady"]
     if phase not in valid_phases:
         raise ValueError(f"Invalid phase: '{phase}'. Valid options are {valid_phases}.")
@@ -191,12 +191,12 @@ def stream_plot(angle, iteration, phase = "steady", ax=None, density = 1):
 
     if ax==None:
         fig,ax = plt.subplots()
-    ax.streamplot(X_inner,Y_inner,avg_vx_inner.T,avg_vy_inner.T, density=density)
+    ax.streamplot(X_inner,Y_inner,avg_vx_inner.T,avg_vy_inner.T, density=density, *args, **kwargs)
 
     return ax
 
 
-def flow_plot(angle, iteration, phase = "steady", ax=None):
+def flow_plot(angle, iteration, phase = "steady", ax=None, density = 1, *args, **kwargs):
     valid_phases = ["transient", "steady"]
     if phase not in valid_phases:
         raise ValueError(f"Invalid phase: '{phase}'. Valid options are {valid_phases}.")
@@ -229,32 +229,60 @@ def flow_plot(angle, iteration, phase = "steady", ax=None):
     X_inner = X[1:-1,1:-1]*L
     Y_inner = Y[1:-1,1:-1]*L
 
-    if ax==None:
-        fig,ax = plt.subplots()
-    ax.quiver(X_inner,Y_inner,avg_vx_inner.T,avg_vy_inner.T, scale=0.2, scale_units='xy')
-    # ax.streamplot(X_inner,Y_inner,avg_vx_inner.T,avg_vy_inner.T, density=1)
+        # Downsample the data based on the density parameter
+    if density < 1:
+        step = int(1 / density)
+        X_inner = X_inner[::step, ::step]
+        Y_inner = Y_inner[::step, ::step]
+        avg_vx_inner = avg_vx_inner[::step, ::step]
+        avg_vy_inner = avg_vy_inner[::step, ::step]
 
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.quiver(X_inner, Y_inner, avg_vx_inner.T, avg_vy_inner.T, scale=0.2, scale_units='xy', *args, **kwargs)
+    
     return ax
 
+iteration = 0
 if quiver_plot:
     ncols  = 2
     angle = available_angles[1]
-    fig2, ax2 = plt.subplots(1,ncols, figsize=(fig_width,fig_width), constrained_layout=True)
-    for i in range(ncols):
-        ax2[i] = flow_plot(angle, 1,ax=ax2[i])
-        ax2[i] = plot_arc(ax2[i], boundary=False)
-        ax2[i].set_title(f"Iteration {i}")
-        ax2[i].set_aspect('equal')
+    # fig2, ax2 = plt.subplots(1,ncols, figsize=(fig_width,fig_width), constrained_layout=True)
+    # for i in range(ncols):
+    #     ax2[i] = flow_plot(angle, 1,ax=ax2[i])
+    #     ax2[i] = plot_arc(ax2[i], boundary=False)
+    #     ax2[i].set_title(f"Iteration {i}")
+    #     ax2[i].set_aspect('equal')
+
+    fig2,ax2 = plt.subplots(1,1, figsize=(fig_width,fig_width), constrained_layout=True)
+    ax2 = flow_plot(angle, iteration=iteration,ax=ax2)
+    ax2 = plot_arc(ax2, boundary=False)
+    hist = get_histogram(angle, iteration=iteration)
+    ax2.imshow(hist.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+    ax2.set_aspect('equal')
+
+
         
 if stream:
     ncols = 2
-    angle = available_angles[1]
-    fig3, ax3 = plt.subplots(1,ncols, figsize=(fig_width,fig_width), constrained_layout=True)
-    for i in range(ncols):
-        ax3[i] = stream_plot(angle, 1,ax=ax3[i], density= 0.5)
-        ax3[i] = plot_arc(ax3[i], boundary=False)
-        ax3[i].set_title(f"Iteration {i}")
-        ax3[i].set_aspect('equal')
-
+    angle = available_angles[5]
+    # fig3, ax3 = plt.subplots(1,ncols, figsize=(fig_width,fig_width), constrained_layout=True)
+    # for i in range(ncols):
+    #     ax3[i] = stream_plot(angle, 1,ax=ax3[i], density= 0.5)
+    #     ax3[i] = plot_arc(ax3[i], boundary=False)
+    #     ax3[i].set_title(f"Iteration {i}")
+    #     ax3[i].set_aspect('equal')
+    fig3, ax3 = plt.subplots(1,1, figsize=(fig_width,fig_width), constrained_layout=True)
+    ax3 = stream_plot(angle, iteration=iteration,ax=ax3,
+                      density=0.5,
+                      color = "black",
+                      integration_direction='both',
+                      broken_streamlines=True,
+                      )
+    ax3 = plot_arc(ax3, boundary=False)
+    hist = get_histogram(angle, iteration=iteration)
+    ax3.imshow(hist.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+    ax3.set_aspect('equal')
+    
 
 plt.show()
