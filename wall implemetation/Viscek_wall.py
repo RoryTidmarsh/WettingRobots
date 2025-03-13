@@ -340,10 +340,10 @@ nsteps = 10000
 current_dir = os.path.dirname(__file__)
 
 start_l_ratio = 1
-start_eta = 0.3
-start_J = 6
+start_eta = 0
+start_J = 0
 # # Loop for each wall length
-for l_ratio in [1,1/3,2/3,0]:#np.linspace(0,1,6)[1::2]:
+for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
     l_ratio = float(l_ratio)
@@ -353,8 +353,8 @@ for l_ratio in [1,1/3,2/3,0]:#np.linspace(0,1,6)[1::2]:
 
     
 # Creating a directory for this wallsize to fall into
-    exp_dir = ["/wall_size_experiment/128wall", "/noise_experiment", "/wall_size_experiment/50wall"]
-    savedir = current_dir + exp_dir[0] + f"/testSave{int(L)}_{l}_{nsteps}"
+    exp_dir = [f"/wall_size_experiment/{int(L)}L", "/noise_experiment", "/wall_size_experiment/50wall"]
+    savedir = current_dir + exp_dir[0] + f"/wall{int(L)}_{l}_{nsteps}"
     # delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
@@ -362,10 +362,10 @@ for l_ratio in [1,1/3,2/3,0]:#np.linspace(0,1,6)[1::2]:
     if l_ratio < start_l_ratio:
         continue
 
-    for eta in [0.2,0.3,0.4,0.6]:#np.linspace(0.1, 0.7, 7):#[0.05,0.1,0.125,0.15,0.175,0.2,0.225]:#
+    for eta in [0.1]:#np.linspace(0.1, 0.7, 7):#[0.05,0.1,0.125,0.15,0.175,0.2,0.225]:#
         if eta < start_eta and l_ratio <= start_l_ratio:
             continue
-        for J in range(6,10):
+        for J in range(6):
             if l_ratio == start_l_ratio and eta == start_eta and J < start_J:
                 continue
             # initialise positions and angles for the new situation
@@ -414,14 +414,14 @@ for l_ratio in [1,1/3,2/3,0]:#np.linspace(0,1,6)[1::2]:
                     counts_all = np.zeros_like(counts_all)
 
             # Saving into npz floats for later analysis
-            np.savez_compressed(f'{savedir}/steady_histogram_data_{l}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
-            np.savez_compressed(f'{savedir}/transient_histogram_data_{l}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
-            np.savez_compressed(f'{savedir}/steady_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = tot_vx_all, Y_hist = tot_vy_all, counts = counts_all)
-            np.savez_compressed(f'{savedir}/transient_stream_plot_{l}_{J}.npz', X = X, Y= Y, X_hist = transient_tot_vx_all, Y_hist = transient_tot_vy_all, counts = transient_counts_all)
-            np.savez_compressed(f'{savedir}/alignment_{l}_{J}.npz', angles = average_angles, std = std_angles)
+            np.savez_compressed(f'{savedir}/steady_histogram_data_{l:.2f}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))
+            np.savez_compressed(f'{savedir}/transient_histogram_data_{l:.2f}_{J}.npz', hist=np.array(transient_hist_pos, dtype = np.float16))
+            np.savez_compressed(f'{savedir}/steady_stream_plot_{l:.2f}_{J}.npz', X = X, Y= Y, X_hist = tot_vx_all, Y_hist = tot_vy_all, counts = counts_all)
+            np.savez_compressed(f'{savedir}/transient_stream_plot_{l:.2f}_{J}.npz', X = X, Y= Y, X_hist = transient_tot_vx_all, Y_hist = transient_tot_vy_all, counts = transient_counts_all)
+            np.savez_compressed(f'{savedir}/alignment_{l:.2f}_{J}.npz', angles = average_angles, std = std_angles)
 
             # Noise experiment
-            np.savez_compressed(f'{savedir}/orientations_{eta}_{J}.npz', orientations = average_orientations, noise = eta) 
+            np.savez_compressed(f'{savedir}/orientations_{l:.2f}_{J}.npz', orientations = average_orientations, noise = eta) 
 
             ## Name change of histogram for varying eta #### FOR NOISE CHANGE EXP ####
             # np.savez_compressed(f'{savedir}/steady_histogram_data_{eta}_{J}.npz', hist=np.array(hist_pos, dtype = np.float64))

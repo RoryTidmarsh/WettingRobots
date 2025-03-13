@@ -6,7 +6,7 @@ from fractions import Fraction
 
 dir = str(os.getcwd())+ "/wall implemetation/noise_experiment"
 filenames = os.listdir(dir)
-dir_starter = "2DistanceNoise64"
+dir_starter = "DistanceNoise64"
 # print(filenames)
 cmap = "hsv"
 L = 64
@@ -14,8 +14,8 @@ r0 = 1
 
 
 
-histograms = False
-timeav_noise = True
+histograms = True
+timeav_noise = False
 single_noise = False
 histogram_filters = False # Initial attempt to find the distance from the wall
 Density_profile = True # Finind the distance from the denisty profile away from the wall
@@ -28,7 +28,7 @@ width_2_subplot = fig_width/2 + 0.25  # for side-by-side subplots
 height_2_subplot = 0.75 * width_2_subplot
 height_cbar_2_subplot = 0.75 * width_2_subplot
 plt.rcParams.update({
-    'font.size': 8,
+    'font.size': 10,
     'axes.labelsize': 9,
     'axes.titlesize': 10,
     'xtick.labelsize': 7,
@@ -434,7 +434,7 @@ def count_iterations(target_eta, target_wall_length):
 if Density_profile:
     fig7, ax7 = plt.subplots(figsize = (fig_width,fig_height))
 
-    wall_length = wall_lengths[-1]
+    wall_length = wall_lengths[-2]
     sim_params = read_summary_file(dir + f"/{dir_starter}_{wall_length}_10000/simulation_parameters_{wall_length}.txt")
     wall_label = float(wall_length)
     nsteps = int(sim_params["Total number of steps"])

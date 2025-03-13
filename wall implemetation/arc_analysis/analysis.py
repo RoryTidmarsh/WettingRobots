@@ -9,7 +9,7 @@ filenames = os.listdir(dir)
 dir_starter = "arc64"
 print(filenames)
 cmap = "hsv"
-L = 50
+L = 64
 r0 = 1
 
 ## Figure information
@@ -57,9 +57,9 @@ def read_summary_file(filepath):
 filepath = dir + "\\arc64_0.00_10000\simulation_parameters_0.0.txt"
 summary_data = read_summary_file(filepath)
 
-R = summary_data["Radius"]
-L = summary_data['Size of box (L)']
-eta = summary_data['Noise/randomness (eta)']
+R = float(summary_data["Radius"])
+L = float(summary_data['Size of box (L)'])
+eta = float(summary_data['Noise/randomness (eta)'])
 r0 = float(summary_data['Interaction radius (r0)'])
 rho = float(summary_data['Density (rho)'])
 center_x = float(summary_data["center_x"])
@@ -262,10 +262,9 @@ if quiver_plot:
     ax2.set_aspect('equal')
 
 
-        
 if stream:
     ncols = 2
-    angle = available_angles[5]
+    angle = available_angles[-1]
     # fig3, ax3 = plt.subplots(1,ncols, figsize=(fig_width,fig_width), constrained_layout=True)
     # for i in range(ncols):
     #     ax3[i] = stream_plot(angle, 1,ax=ax3[i], density= 0.5)

@@ -383,13 +383,20 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
         continue
     # # Creating multiple iterations to be averaged for the alignment
     for J in range(4):
-        if J <iteration_skip and arc_angle <= skip_angle:
+        if J < iteration_skip and arc_angle == skip_angle:
             continue
         # initialise positions and angles for the new situation
         positions = np.random.uniform(0, L, size = (N, 2))
         angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
-        # Creating the inital storage for each plot
+        if arc_angle == 2*np.pi:
+            # Reset all positions to inside the circle
+            for k in range(N):
+                r_k = np.sqrt((positions[k,0]-center_x)**2 + (positions[k,1]-center_y)**2)
+                while r_k > radius:
+                    positions[k] = np.random.uniform(0, L, size = 2)
+                    r_k = np.sqrt((positions[k,0]-center_x)**2 + (positions[k,1]-center_y)**2)
+                    
         # Density Histogram
         hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) 
         ## Direction and Spread plots
