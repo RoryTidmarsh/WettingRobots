@@ -18,7 +18,8 @@ histograms = True
 timeav_noise = False
 single_noise = False
 histogram_filters = False # Initial attempt to find the distance from the wall
-Density_profile = True # Finind the distance from the denisty profile away from the wall
+Density_profile = True # rho vs x for diiferent etas
+Density_profile2 = True # rho vs x for diiferent lw
 # save = False
 
 text_width = 3.25  # inches (single column width)
@@ -434,7 +435,7 @@ def count_iterations(target_eta, target_wall_length):
 if Density_profile:
     fig7, ax7 = plt.subplots(figsize = (fig_width,fig_height))
 
-    wall_length = wall_lengths[-2]
+    wall_length = wall_lengths[-1]
     sim_params = read_summary_file(dir + f"/{dir_starter}_{wall_length}_10000/simulation_parameters_{wall_length}.txt")
     wall_label = float(wall_length)
     nsteps = int(sim_params["Total number of steps"])
@@ -460,11 +461,51 @@ if Density_profile:
     ax7.legend(frameon = False, loc = "lower right")
     ax7.set_xticks(np.linspace(0, L, 5))
     ax7.set_xlim(0,L)
-    ax7.set_ylabel(r"Density ($R_0$)")
+    ax7.set_ylabel(r"Density ($R_0^{-2}$)")
     ax7.set_xlabel(r"x ($R_0$)")
+    # ax7.set_title(f"Density Profile" + rf" $l$: {Fraction(wall_label/L).limit_denominator()}$L$")
     # ax7.grid()
     # ax7.axhline(y=2.5e-5, linestyle="--", color="grey", alpha = 0.5)
     fig7.tight_layout()
-    fig7.savefig(f"figures/density_profile_{wall_label/L:.2f}.png")
+    fig7.savefig(f"figures/density_profile_Etas_{wall_label/L:.2f}.png")
+
+if Density_profile2:
+    fig8, ax8 = plt.subplots(figsize = (fig_width,fig_height))
+
+    wall_length = wall_lengths[-3]
+    sim_params = read_summary_file(dir + f"/{dir_starter}_{wall_length}_10000/simulation_parameters_{wall_length}.txt")
+    wall_label = float(wall_length)
+    nsteps = int(sim_params["Total number of steps"])
+    N = int(sim_params["Number of particles (N)"])
+    steady_state_steps = 5e3
+
+    eta = etas[1]
+    for wall_length_str in wall_lengths:
+        histogram = get_averaged_histograms(eta, wall_length_str)[0].T
+        # Proper normalization:
+            # 1. Divide by bin_area to get density per area
+            # 2. Divide by number of particles to normalize by particle count
+            # 3. Divide by number of time steps to get average over time
+            # 4. Divide by number of iterations that were averaged
+        iterations_count = count_iterations(eta, wall_length_str)
+        print(iterations_count)
+
+        I1 = histogram#/(bin_area*N*steady_state_steps* iterations_count)
+        I1 /=I1.sum()
+        x = np.linspace(0,L, I1.shape[0])
+        wall_length_float = float(wall_length_str)
+        ax8.plot(x,I1.mean(axis=0),label = r"$l$: " +f"${Fraction(wall_length_float/L).limit_denominator()}$L")
+
+    ax8.legend(frameon = False, loc = "lower right")
+    ax8.set_xticks(np.linspace(0, L, 5))
+    ax8.set_xlim(0,L)
+    ax8.set_ylabel(r"Density ($R_0^{-2}$)")
+    ax8.set_xlabel(r"x ($R_0$)")
+    # ax8.set_title(f"Density Profile" + rf" $\eta$: {eta}")
+    # ax8.grid()
+    # ax8.axhline(y=2.5e-5, linestyle="--", color="grey", alpha = 0.5)
+    fig8.tight_layout()
+    fig8.savefig(f"figures/density_profile_wallLengths_{eta}.png")
+
 
 plt.show()

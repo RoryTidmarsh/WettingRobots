@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
 import numba
-from pycircular.stats import periodic_mean_std
 import os
+import tqdm
 
 # parameters
-L = 50 # size of box
+L = 64 # size of box
 rho = 1 # density
 N = int(rho * L**2) # number of particles
 r0 = 0.65 # interaction radius
@@ -20,8 +20,8 @@ max_num_neighbours= 100
 
 
 # Thick wall parameters
-y_min = 0
-y_max = L
+y_min = 0+2
+y_max = L-2
 width = r0
 x_min, x_max = L/2 - width/2, L/2 + width/2  # Thickness of r0
 
@@ -247,7 +247,7 @@ def animate(frames):
     positions = new_positions.copy()
     angles = new_angles.copy()
     step_num +=1
-    print(step_num)
+    # print(step_num)
     
     #Update the quiver plot  
     qv.set_offsets(positions)
@@ -269,6 +269,9 @@ cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
 ax = plot_rect(ax)
+print("Loading animation...")
+for i in tqdm.tqdm(range(0, 1500), desc="Running up to the first 1500 steps"):
+    animate(i)
 # ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), fargs=arc_angle, interval = 5, blit = True)
 ani = FuncAnimation(fig, animate, frames=range(1, int(iterations/10)), fargs=(), interval=5, blit=True)
 ax.legend(loc = "upper right")

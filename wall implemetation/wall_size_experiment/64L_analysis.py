@@ -24,6 +24,8 @@ alignment_direction = False
 alignemnt_spread = False
 direction_histogram = True
 
+dual_hitogram = False # putting two histograms in one plot
+
 save = False
 save_dir = str(os.getcwd())+"/wall implemetation/wall_size_experiment\\figures\\64L"
 
@@ -37,9 +39,9 @@ def get_params():
         raise ValueError(f"No available walls found. The directory starter '{dir_starter}' might be incorrect.")
     return sorted(list(available_walls))
 available_walls = get_params()
-wall_length = available_walls[-1]
+wall_length = available_walls[-2]
 wall_length_float = float(wall_length)
-iteration = 0
+iteration = 4
 wall_yMin = L/2 - wall_length_float/2
 wall_yMax = L/2 + wall_length_float/2
 
@@ -308,20 +310,24 @@ if alignment_direction:
     fig3, ax3 = plt.subplots(figsize=(fig_width, fig_height))
     ax3.axhline(y=-np.pi/2, color='grey',alpha = 0.7, linestyle='-.', lw=0.5)
     ax3.axhline(y=np.pi/2, color='grey',alpha = 0.7, linestyle='-.', lw=0.5)
-    for wall_length in available_walls:
-        orientation = get_average_orientation(wall_length, iteration)
-        ax3.plot(orientation, label = r"$l=$"+f"{Fraction(float(wall_length)/L).limit_denominator()}" + r"$L$")
+    for WALL_LENGTH in available_walls:
+        # if wall_length == "64.0":     ## To demonstrate the anti-parallel case
+        #     orientation = get_average_orientation(wall_length, 5)
+        # else:
+        orientation = get_average_orientation(WALL_LENGTH, iteration)
+        x = np.arange(len(orientation))*averaged_frames
+        ax3.plot(x,orientation, label = r"$l=$"+f"{Fraction(float(WALL_LENGTH)/L).limit_denominator()}" + r"$L$")
     ax3.set_yticks(np.arange(-np.pi, np.pi + np.pi/2, np.pi/2))
     ax3.set_yticklabels([r"$-\pi$", r"$-\pi/2$", "0", r"$\pi/2$", r"$\pi$"])
     
     ax3.set_xlabel("Time step")
     ax3.set_ylabel(r"$\langle \theta (t) \rangle$") 
-    ax3.legend(frameon = False)
+    ax3.legend(frameon = True, loc = "lower right")
 
     #save fig
     if save:
         # fig3.savefig(f"{save_dir}/wall64_alignment_direction_{iteration}.png")
-        fig3.savefig(f"{save_dir}/wall64_alignment_direction_Extra.png")
+        fig3.savefig(f"{save_dir}/wall64_alignment_direction.png")
 
 def flow_plot(angle, iteration,ax = None, type = "stream", phase = "steady", density = 1.0, *args, **kwargs):
     if type not in ["stream","quiver"]:
@@ -381,7 +387,7 @@ if stream:
 
     #save fig
     if save:
-        fig4.savefig(f"{save_dir}/wall64_{wall_length}_stream_{iteration}.png")
+        fig4.savefig(f"{save_dir}/wall64_{wall_length_float:.2f}_stream_{iteration}.png")
 
 if quiver:
     fig5, ax5 = plt.subplots(1,1, figsize=(fig_width, fig_height),constrained_layout=True)
@@ -394,7 +400,7 @@ if quiver:
 
     #save fig
     if save:
-        fig5.savefig(f"{save_dir}/wall64_{wall_length}_quiver_{iteration}.png")
+        fig5.savefig(f"{save_dir}/wall64_{wall_length_float:.2f}_quiver_{iteration}.png")
 
 if direction_histogram:
     fig6, ax6 = plt.subplots(1,1, figsize=(fig_width, fig_height),constrained_layout=True)
@@ -402,18 +408,29 @@ if direction_histogram:
 
     cax6 = ax6.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
     if wall_length_float != 0:
-        ax6 = plot_x_wall(ax6,wall_yMin=wall_yMin,wall_yMax=wall_yMax, boundary=False,wall_color="r")
-    ax6 = flow_plot(wall_length, iteration, ax = ax6, type = "stream", phase = "steady", density = 0.4, color = "black")
+        ax6 = plot_x_wall(ax6,wall_yMin=wall_yMin,wall_yMax=wall_yMax, 
+                          boundary=False,
+                          wall_color="r",
+                          walpha=1,
+                          lw=0.75,
+                          linestyle = "--"
+                          )
+    ax6 = flow_plot(wall_length, iteration, ax = ax6, type = "stream", phase = "steady", 
+                    density = 0.4,
+                    color = "black",
+                   )
     ax6.set_xlabel(r"x ($R_0$)")
     ax6.set_ylabel(r"y ($R_0$)")
     ax6.set_aspect("equal")
+    # ax6.legend()
     cbar6 = fig6.colorbar(cax6, ax=ax6)
     cbar6.set_label("Density")
 
     #save fig
     if save:
-        fig6.savefig(f"{save_dir}/wall64_{wall_length}_histogram_stream_{iteration}.png")
+        fig6.savefig(f"{save_dir}/wall64_{wall_length_float:.2f}_histogram_stream_{iteration}.png")
 
+if dual_hitogram:
     wanted_wall_lengths = available_walls[-2:]
     # 2 plots in one showing l=1L and 1=2/3L
     fig7, ax7 = plt.subplots(1, 2, figsize=(fig_width, fig_width * 0.5), constrained_layout=True)
@@ -428,8 +445,9 @@ if direction_histogram:
         if wall_length_float != 0:
             ax7[i] = plot_x_wall(ax7[i], wall_yMin=wall_yMin, wall_yMax=wall_yMax,
                                 boundary=False,
-                                wall_color="r",
-                                lw=1.)
+                                wall_color="white",
+                                lw=0.75,
+                                walpha=1)
             ax7[i] = flow_plot(wall_length, iteration, ax=ax7[i],
                             type="stream",
                             phase="steady",
@@ -449,6 +467,6 @@ if direction_histogram:
     cbar7.set_label("Density")
     # cbar7.set_ticks()
     if save:
-        fig7.savefig(f"{save_dir}/wall64_{wanted_wall_lengths[0]}_{wanted_wall_lengths[1]}_histogram_stream_{iteration}_cbar.png")
+        fig7.savefig(f"{save_dir}/wall64_{wanted_wall_lengths[0]}_{wanted_wall_lengths[1]}_histogram_stream_{iteration}.png")
 
 plt.show()
