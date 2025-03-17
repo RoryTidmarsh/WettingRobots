@@ -12,6 +12,7 @@ cmap = "viridis"
 L = 64
 r0 = 1
 
+save_dir = "figures"
 ## Figure information
 text_width = 3.25  # inches (single column width)
 fig_width = text_width
@@ -41,8 +42,10 @@ plt.rcParams.update({
 })
 
 histograms = False
-stream = True
+stream = False
 quiver_plot = False
+alignment_direction = True
+alignment_spread = True
 
 save = True
 
@@ -66,6 +69,7 @@ r0 = float(summary_data['Interaction radius (r0)'])
 rho = float(summary_data['Density (rho)'])
 center_x = float(summary_data["center_x"])
 center_y = float(summary_data["center_y"])
+averaged_frames = 10
 
 def get_params():
     available_angles = set() # multiples of pi
@@ -323,7 +327,7 @@ if quiver_plot:
 
 iteration = 3
 if stream:
-    angle = available_angles[1]  # This is the full circle case
+    angle = available_angles[-3]  # This is the full circle case
     fig3, ax3 = plt.subplots(1, 1, figsize=(fig_width, fig_width*0.7), constrained_layout=True)
     # Get the histogram first
     hist = get_histogram(angle, iteration=iteration)
@@ -345,7 +349,7 @@ if stream:
     if angle == "2.00":
         radius = 0.91*R
     else:
-        radius = 2*L
+        radius = 3*L
     ax3 = stream_plot(
         angle, 
         iteration=iteration,
@@ -362,14 +366,153 @@ if stream:
     # ax3.set_ylim(10,54)
     ax3.set_aspect('equal')
     ax3.legend(loc = "upper left")
+    ax3.set_xlabel(r"x ($R_0$)")
+    ax3.set_ylabel(r"y ($R_0$)")
     # Add the colorbar
     cbar = fig3.colorbar(im, ax=ax3)
     cbar.set_label("Density")
 
-    
-
     if save:
         fig3.savefig(f"figures/arc_hist_stream_{float(angle):.2f}.png", dpi=300)
     
+
+def count_iterations(target_wall_length):
+    """Count how many iterations were averaged for a specific wall_length"""
+    count = 0
+    folder_path = dir + f"/{dir_starter}_{target_wall_length}_10000"
+    
+    for item in os.listdir(folder_path):
+        if item.startswith("steady_histogram_data") and item.endswith(".npz"):
+            parts = item.split("_")
+            if len(parts) >= 4:
+                try:
+                    wall_length = float(parts[-2])
+                    if wall_length == float(target_wall_length):
+                        count += 1
+                except ValueError:
+                    continue
+    
+    return max(1, count)
+
+def get_average_orientation(wall_length, iteration):
+    for exp_item in os.listdir(dir):
+        if exp_item.split("_")[0] == dir_starter and exp_item.split("_")[1] == wall_length:
+            folder_path = os.path.join(dir, exp_item)
+            for item in os.listdir(folder_path):
+                if item.endswith(f"{iteration}.npz") and "alignment" in item:
+                    orientation_path = os.path.join(folder_path, item)
+                    orientation_data = np.load(orientation_path)["angles"]
+                    return orientation_data
+# print(len(get_average_orientation(wall_length, iteration)))
+
+def get_orientation_spread(wall_length, iteration):
+    for exp_item in os.listdir(dir):
+        if exp_item.split("_")[0] == dir_starter and exp_item.split("_")[1] == wall_length:
+            folder_path = os.path.join(dir, exp_item)
+            for item in os.listdir(folder_path):
+                if item.endswith(f"{iteration}.npz") and "orientations" in item:
+                    spread_path = os.path.join(folder_path, item)
+                    spread_data = np.load(spread_path)["orientations"]
+                    return spread_data
+# print(len(get_orientation_spread(wall_length, iteration)))
+
+def average_spread(wall_length):
+    tot_iterations = count_iterations(wall_length)
+    spread = np.array(get_orientation_spread(wall_length, 0))
+    for i in range(1,tot_iterations-1):
+        spread += np.array(get_orientation_spread(wall_length, i))
+    return spread/tot_iterations
+
+
+if alignment_spread:
+    fig2, ax2 = plt.subplots(figsize=(fig_width, fig_height))
+    for ANGLE in available_angles[:-1]:
+        spread = average_spread(ANGLE)
+        ax2.plot(spread, label = r"$\phi=$"+f"{Fraction(float(ANGLE)).limit_denominator(10)}" + r"$\pi$")
+    ax2.set_xlabel("Time step")
+    ax2.set_ylabel(r"$\varphi (t)$") 
+    ax2.legend(frameon = False)
+
+    #save fig
+    if save:
+        fig2.savefig(f"{save_dir}/arc64_alignment_spread.png")
+
+def plot_cyclic_angles(ax, time_steps, angles, label=None, color=None, marker='.', linestyle='-', markersize=2, linewidth=1):
+    """
+    Plot angular data properly handling the cyclic nature (-π to π jumps).
+    
+    Parameters:
+    -----------
+    ax : matplotlib axis
+        The axis to plot on
+    time_steps : array-like
+        The x values (time)
+    angles : array-like
+        The y values (angles in radians)
+    label : str, optional
+        Label for the plot legend
+    color : str, optional
+        Color for the plot
+    """
+    # Convert to numpy array if not already
+    angles = np.array(angles)
+    time_steps = np.array(time_steps)
+    
+    # Create points for the line segments
+    points = np.column_stack([time_steps, angles])
+    segments = np.concatenate([points[:-1, None], points[1:, None]], axis=1)
+    
+    # Calculate angle differences
+    angle_diff = np.diff(angles)
+    
+    # Identify where discontinuities occur (jumps greater than π)
+    # We use 0.9*π as threshold to account for potential noise
+    mask = np.abs(angle_diff) > 1.8*np.pi
+    
+    from matplotlib.collections import LineCollection
+    # Create a line collection with breaks at discontinuities
+    lc = LineCollection(segments[~mask], colors=color, linestyle=linestyle, linewidth=linewidth, label = label)
+    line = ax.add_collection(lc)
+    
+    # Plot markers (all points)
+    # scatter = ax.scatter(time_steps, angles, color=color, marker=marker, s=markersize, label=label)
+    
+    return line
+
+if alignment_direction:
+    fig3, ax3 = plt.subplots(figsize=(fig_width, fig_height))
+    ax3.axhline(y=-np.pi/2, color='grey', alpha=0.7, linestyle='-.', lw=0.5)
+    ax3.axhline(y=np.pi/2, color='grey', alpha=0.7, linestyle='-.', lw=0.5)
+    
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']  # Needed due to the line splitting
+    
+    for i, ANGLE in enumerate(available_angles):
+        if float(ANGLE) >= 1.6:
+            continue
+        orientation = get_average_orientation(ANGLE, iteration)
+        x = np.arange(len(orientation))*averaged_frames
+        
+        # Use the new function instead of scatter
+        plot_cyclic_angles(
+            ax3, 
+            x, 
+            orientation, 
+            label=r"$\phi=$"+f"{Fraction(float(ANGLE)).limit_denominator(10)}" + r"$\pi$",
+            color=colors[i % len(colors)],
+            marker=None,
+            markersize=4
+        )
+    
+    ax3.set_yticks(np.arange(-np.pi, np.pi + np.pi/2, np.pi/2))
+    ax3.set_yticklabels([r"$-\pi$", r"$-\pi/2$", "0", r"$\pi/2$", r"$\pi$"])
+    
+    ax3.set_xlabel("Time step")
+    ax3.set_ylabel(r"$\langle \theta (t) \rangle$") 
+    ax3.set_xlim(0, max(x))
+    ax3.set_ylim(-np.pi-0.1, np.pi+0.1)
+    ax3.legend(frameon=True, loc="lower right")
+    #save fig
+    if save:
+        fig3.savefig(f"{save_dir}/arc64_alignment_direction.png")
 
 plt.show()
