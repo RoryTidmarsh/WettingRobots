@@ -26,7 +26,7 @@ max_num_neighbours= 100
 
 # Curved wall parameters
 radius = L/3    # radius of the circle
-arc_angle = np.pi/3*2  # length of arc in radians (pi/2 = quarter circle)
+arc_angle = np.pi*2  # length of arc in radians (pi/2 = quarter circle)
 start_angle = -arc_angle/2#-arc_angle/2  # starting angle of the arc
 center_x = L/2 # x-coordinate of circle center
 center_y = L/2  # y-coordinate of circle center
@@ -38,6 +38,14 @@ step_num = 0
 # initialise positions and angles
 positions = np.random.uniform(0, L, size = (N, 2))
 angles = np.random.uniform(-np.pi, np.pi, size = N) 
+
+if arc_angle == 2*np.pi:
+    # Reset all positions to inside the circle
+    for k in range(N):
+        r_k = np.sqrt((positions[k,0]-center_x)**2 + (positions[k,1]-center_y)**2)
+        while r_k > (radius-wall_distance):
+            positions[k] = np.random.uniform(0, L, size = 2)
+            r_k = np.sqrt((positions[k,0]-center_x)**2 + (positions[k,1]-center_y)**2)
 
 @numba.njit
 def average_angle(new_angles):
@@ -286,8 +294,8 @@ cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
 cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
 ax = plot_arc(ax, boundary=True)
-for _ in tqdm(range(2000)):
-    animate(_, arc_angle)
+# for _ in tqdm(range(2000)):
+#     animate(_, arc_angle)
 ani = FuncAnimation(fig, animate, frames=range(1, int(iterations/10)), fargs=(arc_angle,), interval=5, blit=True)
 ax.legend(loc = "upper right")
 # ani.save(f'figures/Vicsek_={rho}_eta={eta}.gif', writer='pillow', fps=30)

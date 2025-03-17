@@ -480,6 +480,7 @@ if Density_profile2:
     steady_state_steps = 5e3
 
     eta = etas[1]
+    
     for wall_length_str in wall_lengths:
         histogram = get_averaged_histograms(eta, wall_length_str)[0].T
         # Proper normalization:
@@ -492,6 +493,7 @@ if Density_profile2:
 
         I1 = histogram#/(bin_area*N*steady_state_steps* iterations_count)
         I1 /=I1.sum()
+        
         x = np.linspace(0,L, I1.shape[0])
         wall_length_float = float(wall_length_str)
         ax8.plot(x,I1.mean(axis=0),label = r"$l$: " +f"${Fraction(wall_length_float/L).limit_denominator()}$L")
@@ -504,8 +506,28 @@ if Density_profile2:
     # ax8.set_title(f"Density Profile" + rf" $\eta$: {eta}")
     # ax8.grid()
     # ax8.axhline(y=2.5e-5, linestyle="--", color="grey", alpha = 0.5)
-    fig8.tight_layout()
-    fig8.savefig(f"figures/density_profile_wallLengths_{eta}.png")
+    # fig8.savefig(f"figures/density_profile_wallLengths_{eta}.png")
+
+
+    # max_density = []
+    # wall_floats = []
+    # fig9,ax9 = plt.subplots(figsize = (fig_width,fig_height))
+    # wall_length_str = wall_lengths[-1]
+    # for eta in etas:
+    #     eta_float = float(eta)
+
+    #     histogram = get_averaged_histograms(eta, wall_length_str)[0].T
+
+    #     I1 = histogram#/(bin_area*N*steady_state_steps* iterations_count)
+    #     I1 /=I1.sum()
+
+    #     max_density.append(I1.max())
+    #     wall_floats.append(eta)
+
+    # ax9.plot(wall_floats,max_density, marker = "x")
+    # ax9.set_xlabel(r"$\eta$")
+    # ax9.set_ylabel(r"Max Density")
+    # ax9.set_ylim(0,0.0001)
 
 
 plt.show()

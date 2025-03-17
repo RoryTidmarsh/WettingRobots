@@ -70,7 +70,7 @@ tot_vy_all = np.zeros((bins, bins))
 counts_all = np.zeros((bins, bins)) # number of particles in cell
 vxedges = np.linspace(0, 1, bins + 1) # bin edges for meshgrid
 vyedges = np.linspace(0, 1, bins + 1)
-X,Y = np.meshgrid(vxedges[:-1],vyedges[:-1]) # meshgrid for quiver plot
+X, Y = np.meshgrid(vxedges[:-1] + (vxedges[1] - vxedges[0]) / 2, vyedges[:-1] + (vyedges[1] - vyedges[0]) / 2) # meshgrid for quiver plot
 
 @numba.njit
 def velocity_flux(positions, angles, v0):
@@ -283,9 +283,9 @@ def animate(frames, arc_angle, start_angle=-arc_angle/2):
     dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
     tot_vx, tot_vy = velocity_flux(positions, angles, v0)
     # histograms for the x and y velocity components
-    H_vx, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,0])
-    H_vy, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,1])
-    counts, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins)
+    H_vx, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, range=[[0,L],[0,L]], weights = dr[:,0])
+    H_vy, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, range=[[0,L],[0,L]], weights = dr[:,1])
+    counts, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, range=[[0,L],[0,L]])
     tot_vx_all += H_vx
     tot_vy_all += H_vy
     counts_all += counts # hist of number of particles
@@ -393,12 +393,25 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
             # Reset all positions to inside the circle
             for k in range(N):
                 r_k = np.sqrt((positions[k,0]-center_x)**2 + (positions[k,1]-center_y)**2)
-                while r_k > radius:
+                while r_k >= radius:
                     positions[k] = np.random.uniform(0, L, size = 2)
                     r_k = np.sqrt((positions[k,0]-center_x)**2 + (positions[k,1]-center_y)**2)
-                    
+
+        # Initialise histogram over the entire system
+        hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:, 1], bins=hbins, range=[[0, L], [0, L]], density=False)
+        bin_area = (xedges[1] - xedges[0]) * (yedges[1] - yedges[0])
+
+        # Streamplot setup
+        bins = int(L / r0)
+        tot_vx_all = np.zeros((bins, bins)) # velocity x components for all particles
+        tot_vy_all = np.zeros((bins, bins))
+        counts_all = np.zeros((bins, bins)) # number of particles in cell
+        vxedges = np.linspace(0, L, bins + 1) # bin edges for meshgrid
+        vyedges = np.linspace(0, L, bins + 1)
+        X, Y = np.meshgrid(vxedges[:-1], vyedges[:-1]) # meshgrid for quiver plot
+
         # Density Histogram
-        hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) 
+        # hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) 
         ## Direction and Spread plots
         av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
         average_angles = [av_angle] # Create arrays witht the initial angles in s
@@ -417,7 +430,6 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
             transient_cutoff = nsteps
         else:
             transient_cutoff = 3000
-        # Run the simulation
         for i in tqdm(range(1, nsteps+1), desc=f"Arc angle {Fraction(arc_angle/np.pi).limit_denominator(np.pi)}pi, Iteration {J}"):
             animate(i, arc_angle,start_angle)
 
@@ -449,6 +461,28 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
         ## Saving positions and orientations for setup for recreation of the system
         # np.savez_compressed(f'{savedir}/finalstate_{arc_angle/np.pi:.2f}_{J}.npz', Positions = positions, Orientation = angles)
 
+        fig, ax = plt.subplots()
+        cax = ax.imshow(hist_pos.T, origin='lower', cmap='viridis', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
+        ax.streamplot(X*L, Y*L, tot_vy_all, tot_vx_all, color="white")
+        ax.set_title(f"Stream Plot for arc_angle={arc_angle/np.pi:.2f}π, Iteration {J}")
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        
+        cbar = fig.colorbar(cax, ax=ax)
+
+        arc = plt.Circle((center_x, center_y), radius, color='r', fill=False, linestyle='--')
+        ax.add_artist(arc)
+        plt.show()
+
+        # theta = np.linspace(start_angle, start_angle + arc_angle, 100)
+        # x_arc = center_x + radius * np.cos(theta)
+        # y_arc = center_y + radius * np.sin(theta)
+        # ax.plot(x_arc, y_arc, 'r--')
+
+        # fig1, ax1 = plt.subplots()
+        # ax1.quiver(positions[:, 0], positions[:, 1], np.cos(angles), np.sin(angles), angles, clim=[-np.pi, np.pi], cmap="hsv")
+        # ax1.set_title(f"Final State of the System for arc_angle={arc_angle/np.pi:.2f}π, Iteration {J}")
+        # plt.show()
         # Reset the data storage arrays
         hist_pos = np.zeros_like(hist_pos)
         tot_vx_all = np.zeros_like(tot_vx_all)
