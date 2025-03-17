@@ -25,21 +25,26 @@ eta = 0.1  # noise/randomness
 max_num_neighbours= 100
 
 
-# Defining parameters for a wall only in the x direction.
-wall_x = L/2
-wall_yMin = 0   #L/2 - L/4
-wall_yMax = L   #L/2 + L/4
+# Defining parameters for walls in both x and y directions.
+wall_x1 = 1
+wall_x2 = L - 1
+wall_y1 = 1
+wall_y2 = L - 1
 wall_distance = r0
-wall_turn = np.deg2rad(110)
 turn_factor = 0.2
+step_num = 0
 
 # initialise positions and angles
-positions = np.random.uniform(0, L, size = (N, 2))
-angles = np.random.uniform(-np.pi, np.pi, size = N) 
+positions = np.random.uniform(0, L, size=(N, 2))
+angles = np.random.uniform(-np.pi, np.pi, size=N)
+
+# Ensure all particles are spawned within the barriers
+confined = True
+if confined:
+    positions = np.random.uniform([wall_x1, wall_y1], [wall_x2, wall_y2], size=(N, 2))
 
 #### INITIALISATION OF DATA STORAGE ARAYS - for creation of analysis figures ####
 # For alignment Graph
-step_num = 0
 av_frames_angles = 10
 num_frames_av_angles = np.empty(av_frames_angles)
 num_frames_std_angles = np.empty(av_frames_angles)
@@ -71,7 +76,7 @@ X,Y = np.meshgrid(vxedges[:-1],vyedges[:-1]) # meshgrid for quiver plot
 
 #### Wall funcitons ####
 @numba.njit
-def x_wall_filter(x_pos,y_pos, wall_yMax, wall_yMin):
+def x_wall_filter(x_pos,y_pos, wall_yMax, wall_yMin, wall_x=wall_x1):
     """Finds the distance of the arrow to the wall.
 
     Args:
@@ -92,7 +97,28 @@ def x_wall_filter(x_pos,y_pos, wall_yMax, wall_yMin):
     return distance_to_wall
 
 @numba.njit
-def varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin):
+def y_wall_filter(x_pos, y_pos, wall_xMax, wall_xMin, wall_y=wall_y1):
+    """Finds the distance of the particle to the wall in the y direction.
+
+    Args:
+        x_pos (float): x_position of 1 particle
+        y_pos (float): y_position of 1 particle
+    Returns:
+        distance_to_wall: distance of the particle to the wall
+    """
+    if x_pos > wall_xMax:
+        #particle to the right of the wall
+        distance_to_wall = np.sqrt((x_pos-wall_xMax)**2 + (y_pos-wall_y)**2)
+    elif x_pos < wall_xMin:
+        #particle to the left of the wall
+        distance_to_wall = np.sqrt((x_pos-wall_xMin)**2 + (y_pos-wall_y)**2)
+    else:
+        #particle level with the wall
+        distance_to_wall = np.abs(y_pos-wall_y)
+    return distance_to_wall
+
+@numba.njit
+def varying_angle_turn(x_pos, y_pos, turn_factor, wall_y1, wall_y2, wall_x):
     """Tells the particle how much to turn when it is within the boundary as a function of its distance to the boundary
 
     Args:
@@ -104,15 +130,46 @@ def varying_angle_turn(x_pos, y_pos, turn_factor, wall_yMax, wall_yMin):
     """
     x_dist = x_pos- wall_x
     
-    dist = x_wall_filter(x_pos, y_pos, wall_yMax, wall_yMin)
+    dist = x_wall_filter(x_pos, y_pos, wall_y2, wall_y1, wall_x)
     if dist < wall_distance:
-        if wall_yMin <= y_pos <= wall_yMax:
+        if wall_y1 <= y_pos <= wall_y2:
             y_dist = 0 # Turn off any interaction in y direction
             
-        elif wall_yMin > y_pos:
-            y_dist =  y_pos - wall_yMin
-        elif wall_yMax < y_pos:
-            y_dist = y_pos - wall_yMax
+        elif wall_y1 > y_pos:
+            y_dist =  y_pos - wall_y1
+        elif wall_y2 < y_pos:
+            y_dist = y_pos - wall_y2
+
+        r_hat = (x_dist +y_dist*1j)/(x_dist**2 +y_dist**2)
+    
+        #complex_turn = alpha/(turn_factor*dist*r_hat.real) +beta/(turn_factor*r_hat.imag)*1.0j
+        complex_turn = (turn_factor/dist)*r_hat
+    else:
+        complex_turn = 0
+    return complex_turn
+
+@numba.njit
+def varying_angle_turn_y(x_pos, y_pos, turn_factor, wall_x1, wall_x2, wall_y):
+    """Tells the particle how much to turn when it is within the boundary in the y direction
+
+    Args:
+        dist (float): distance the particle is to the wall
+        turn_factor (float): how quickly the particle should turn when approaching the wall
+
+    Returns:
+        complex_turn: complex number representing the angle
+    """
+    y_dist = y_pos- wall_y
+    
+    dist = y_wall_filter(x_pos, y_pos, wall_x2, wall_x1, wall_y)
+    if dist < wall_distance:
+        if wall_x1 <= x_pos <= wall_x2:
+            x_dist = 0 # Turn off any interaction in x direction
+            
+        elif wall_x1 > x_pos:
+            x_dist =  x_pos - wall_x1
+        elif wall_x2 < x_pos:
+            x_dist = x_pos - wall_x2
 
         r_hat = (x_dist +y_dist*1j)/(x_dist**2 +y_dist**2)
     
@@ -180,7 +237,7 @@ def initialise_cells(positions, cell_size, num_cells, max_particles_per_cell):
 
 
 @numba.njit(parallel=True)
-def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_yMax, wall_yMin,eta = eta):
+def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall_y1, wall_y2, wall_x1, wall_x2, eta = eta):
     
     N = positions.shape[0]
     new_positions = np.empty_like(positions)
@@ -226,12 +283,13 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
         x_pos = positions[i,0]
         y_pos = positions[i,1]
           
-        # Calculate the angle to turn due to the wall
-        if wall_yMin == wall_yMax:
-            # i.e. there is no wall
-            wall_turn = 0
-        else:
-            wall_turn = varying_angle_turn(x_pos, y_pos,turn_factor=turn_factor, wall_yMin=wall_yMin, wall_yMax=wall_yMax)
+        # Calculate the angle to turn due to the walls
+        wall_turn1 = varying_angle_turn(x_pos, y_pos, turn_factor, wall_y1, wall_y2, wall_x1)
+        wall_turn2 = varying_angle_turn(x_pos, y_pos, turn_factor, wall_y1, wall_y2, wall_x2)
+        wall_turn3 = varying_angle_turn_y(x_pos, y_pos, turn_factor, wall_x1, wall_x2, wall_y1)
+        wall_turn4 = varying_angle_turn_y(x_pos, y_pos, turn_factor, wall_x1, wall_x2, wall_y2)
+        wall_turn = wall_turn1 + wall_turn2 + wall_turn3 + wall_turn4
+
         noise = eta * np.random.uniform(-np.pi, np.pi)
         # if there are neighbours, calculate average angle      
         if count_neigh > 0:
@@ -250,10 +308,10 @@ def update(positions, angles, cell_size, num_cells, max_particles_per_cell, wall
 
     return new_positions, new_angles
 
-def animate(frames, wall_yMax, wall_yMin):
+def animate(frames, wall_y1, wall_y2, wall_x1, wall_x2):
     # print(frames)
     global positions, angles, step_num,eta
-    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_yMax, wall_yMin,eta=eta)
+    new_positions, new_angles = update(positions, angles,cell_size, lateral_num_cells, max_particles_per_cell, wall_y1, wall_y2, wall_x1, wall_x2,eta=eta)
     
     ### NEEDED FOR ANALYSIS FIGURES
     ## alignment graphs
@@ -342,7 +400,7 @@ current_dir = os.path.dirname(__file__)
 start_l_ratio = 1
 start_eta = 0
 start_J = 0
-# # Loop for each wall length
+# Loop for each wall length
 for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
@@ -350,11 +408,15 @@ for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
     l = L* l_ratio
     wall_yMin = L/2 - l/2
     wall_yMax = L/2 + l/2
+    wall_y1 = 1
+    wall_y2 = L - 1
+    wall_x1 = 1
+    wall_x2 = L - 1
 
     
 # Creating a directory for this wallsize to fall into
     exp_dir = [f"/wall_size_experiment/{int(L)}L", "/noise_experiment", "/wall_size_experiment/50wall"]
-    savedir = current_dir + exp_dir[0] + f"/wall{int(L)}_{l}_{nsteps}"
+    savedir = current_dir + exp_dir[0] + f"/square_{nsteps}"
     # delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
@@ -365,11 +427,11 @@ for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
     for eta in [0.1]:#np.linspace(0.1, 0.7, 7):#[0.05,0.1,0.125,0.15,0.175,0.2,0.225]:#
         if eta < start_eta and l_ratio <= start_l_ratio:
             continue
-        for J in range(6):
+        for J in range(4):
             if l_ratio == start_l_ratio and eta == start_eta and J < start_J:
                 continue
             # initialise positions and angles for the new situation
-            positions = np.random.uniform(0, L, size = (N, 2))
+            positions = np.random.uniform([wall_x1, wall_y1], [wall_x2, wall_y2], size=(N, 2))
             angles = np.random.uniform(-np.pi, np.pi, size = N) 
 
             # Creating the inital storage for each plot
@@ -396,7 +458,7 @@ for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
                 transient_cutoff = 3000
             # Run the simulation
             for i in tqdm(range(1, nsteps+1), desc=f"Wall length ratio {l_ratio:.2f}, noise {eta}, Itt {J}"):
-                animate(i, wall_yMax, wall_yMin)
+                animate(i, wall_y1, wall_y2, wall_x1, wall_x2)
 
                 # store all the data from the transient phase            
                 if i==transient_cutoff:
