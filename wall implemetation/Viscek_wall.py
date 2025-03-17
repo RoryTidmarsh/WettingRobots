@@ -63,7 +63,7 @@ average_orientations = [average_orientation(angles)]
 
 ###Average position in a 2D histogram over time
 hbins = int(L*5/r0)
-hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False)
+hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, range=[[0,L],[0,L]], density = False)
 
 ### Streamplot setup
 bins = int(L / r0)
@@ -178,36 +178,6 @@ def varying_angle_turn_y(x_pos, y_pos, turn_factor, wall_x1, wall_x2, wall_y):
     else:
         complex_turn = 0
     return complex_turn
-
-def plot_x_wall(ax, wall_color = "blue", boundary = True, walpha = 1):
-    """plots the boundary based on the initial dimensions of the wall set.
-
-    Args:
-        ax (matplotlib axis): input axis for the wall to be plotted onto
-
-    Returns:
-        ax: plot including the wall.
-    """
-    if boundary==True:
-        # Boundary left and right of the wall within vertical bounds
-        ax.plot([wall_x - wall_distance, wall_x - wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2, label=f'Boundary at {wall_distance:.2f}')
-        ax.plot([wall_x + wall_distance, wall_x + wall_distance], [wall_yMin, wall_yMax], 'b--', lw=2)
-        
-        # Boundary above the wall (top circle segment)
-        theta = np.linspace(0, np.pi, 100)  # For the top part of the wall
-        top_circle_x = wall_x + wall_distance * np.cos(theta)
-        top_circle_y = wall_yMax + wall_distance * np.sin(theta)
-        ax.plot(top_circle_x, top_circle_y, 'b--', lw=2)
-        
-        # Boundary below the wall (bottom circle segment)
-        theta = np.linspace(np.pi, 2 * np.pi, 100)  # For the bottom part of the wall
-        bottom_circle_x = wall_x + wall_distance * np.cos(theta)
-        bottom_circle_y = wall_yMin + wall_distance * np.sin(theta)
-        ax.plot(bottom_circle_x, bottom_circle_y, 'b--', lw=2)
-
-    #plot the wall
-    ax.plot([wall_x,wall_x],[wall_yMin,wall_yMax], label = "wall", color = wall_color, alpha = walpha)
-    return ax
 
 #### Cell Searching####
 # cell list
@@ -342,9 +312,9 @@ def animate(frames, wall_y1, wall_y2, wall_x1, wall_x2):
     dr = np.where(dr >5.0, dr-10, dr)
     dr = np.where(dr < -5.0, dr+10, dr) #Filtering to see where the paricles go over the periodic boundary conditions
     # histograms for the x and y velocity components
-    H_vx, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,0])
-    H_vy, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, weights = dr[:,1])
-    counts, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins)
+    H_vx, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, range=[[0,L],[0,L]], weights = dr[:,0])
+    H_vy, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, range=[[0,L],[0,L]], weights = dr[:,1])
+    counts, vxedges, vyedges = np.histogram2d(positions[:,0], positions[:,1], bins = bins, range=[[0,L],[0,L]])
     tot_vx_all += H_vx
     tot_vy_all += H_vy
     counts_all += counts # hist of number of particles
@@ -397,26 +367,31 @@ def output_parameters(file_dir):
 nsteps = 10000
 current_dir = os.path.dirname(__file__)
 
-start_l_ratio = 1
+start_l_ratio = 0.75
 start_eta = 0
 start_J = 0
 # Loop for each wall length
-for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
+for l_ratio in [0.75]:#np.linspace(0,1,6)[1::2]:
     # J=0
     # Initialising the new wall
     l_ratio = float(l_ratio)
     l = L* l_ratio
-    wall_yMin = L/2 - l/2
-    wall_yMax = L/2 + l/2
-    wall_y1 = 1
-    wall_y2 = L - 1
-    wall_x1 = 1
-    wall_x2 = L - 1
+
+    # Confined square geometry
+    wall_yMin = L / 2 - l / 2
+    wall_yMax = L / 2 + l / 2
+    wall_xMin = L / 2 - l / 2
+    wall_xMax = L / 2 + l / 2
+
+    wall_y1 = wall_yMin
+    wall_y2 = wall_yMax
+    wall_x1 = wall_xMin
+    wall_x2 = wall_xMax
 
     
 # Creating a directory for this wallsize to fall into
     exp_dir = [f"/wall_size_experiment/{int(L)}L", "/noise_experiment", "/wall_size_experiment/50wall"]
-    savedir = current_dir + exp_dir[0] + f"/square_{nsteps}"
+    savedir = current_dir + exp_dir[0] + f"/square_{l}_{nsteps}"
     # delete_files_in_directory(savedir)
     os.makedirs(savedir, exist_ok=True)
     output_parameters(savedir)
@@ -424,11 +399,11 @@ for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
     if l_ratio < start_l_ratio:
         continue
 
-    for eta in [0.1]:#np.linspace(0.1, 0.7, 7):#[0.05,0.1,0.125,0.15,0.175,0.2,0.225]:#
+    for eta in [0.1]:
         if eta < start_eta and l_ratio <= start_l_ratio:
             continue
-        for J in range(4):
-            if l_ratio == start_l_ratio and eta == start_eta and J < start_J:
+        for J in range(0,4):
+            if (l_ratio <= start_l_ratio and eta <= start_eta) and J < start_J:
                 continue
             # initialise positions and angles for the new situation
             positions = np.random.uniform([wall_x1, wall_y1], [wall_x2, wall_y2], size=(N, 2))
@@ -436,7 +411,7 @@ for l_ratio in [1]:#np.linspace(0,1,6)[1::2]:
 
             # Creating the inital storage for each plot
             # Density Histogram
-            hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, density = False) 
+            hist_pos, xedges, yedges = np.histogram2d(positions[:, 0], positions[:,1], bins= hbins, range=[[0,L],[0,L]], density = False) 
             ## Direction and Spread plots
             av_angle, angle_std = periodic_mean_std(angles) # Average angle of inital setup
             average_angles = [av_angle] # Create arrays witht the initial angles in s

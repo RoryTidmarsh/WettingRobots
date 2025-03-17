@@ -6,13 +6,13 @@ from fractions import Fraction
 
 dir = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/64L"
 filenames = os.listdir(dir)
-dir_starter = "wall64"
+dir_starter = "square"
 print(filenames)
 
 # dir2 = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/64L/wall64_0.0_10000"
 # filenames2 = os.listdir(dir2)
 # print(filenames2)
-cmap = "hsv"
+cmap = "viridis"
 L = 64
 r0 = 1
 
@@ -39,9 +39,10 @@ def get_params():
         raise ValueError(f"No available walls found. The directory starter '{dir_starter}' might be incorrect.")
     return sorted(list(available_walls))
 available_walls = get_params()
-wall_length = available_walls[-2]
+wall_length = available_walls[0]
+print(wall_length)
 wall_length_float = float(wall_length)
-iteration = 4
+iteration = 0
 wall_yMin = L/2 - wall_length_float/2
 wall_yMax = L/2 + wall_length_float/2
 
@@ -125,11 +126,18 @@ def get_histogram(wall_length, iteration):
                     histogram_path = os.path.join(folder_path, item)
                     histogram_data = np.load(histogram_path)["hist"]
 
-                    #normalise the histogram
-                    bin_area = (L/len(histogram_data))**2
-                    histogram_data = histogram_data/(np.sum(histogram_data))
+                    # Check if histogram data is empty
+                    if histogram_data.size == 0:
+                        raise ValueError(f"Histogram data is empty for wall length {wall_length} and iteration {iteration}. Try another wall length or iteration.")
+
+                    # Normalize the histogram
+                    bin_area = (L / len(histogram_data)) ** 2
+                    histogram_data = histogram_data / np.sum(histogram_data)
 
                     return histogram_data
+
+    # If no matching histogram is found, raise an error
+    raise ValueError(f"No histogram found for wall length {wall_length} and iteration {iteration}. Try another wall length or iteration.")
 
 def get_averaged_histograms(target_wall_length):
     """
@@ -225,7 +233,7 @@ if single_hist:
 
     histogram_data = get_histogram(wall_length, iteration)
     fig, ax = plt.subplots(figsize=(fig_width, fig_height),constrained_layout=True)
-    cax = ax.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+    cax = ax.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap=cmap, aspect='auto')
     if wall_length_float != 0:
         ax = plot_x_wall(ax,wall_yMin=wall_yMin,wall_yMax=wall_yMax, boundary=False,wall_color="r")
     
@@ -248,7 +256,7 @@ if single_hist:
 if average_hist:
     histogram_data = get_averaged_histograms(wall_length)[0]
     fig1, ax1 = plt.subplots(figsize=(fig_width, fig_height),constrained_layout=True)
-    cax1 = ax1.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
+    cax1 = ax1.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap=cmap, aspect='auto')
 
     if wall_length_float != 0:
         ax1 = plot_x_wall(ax1,wall_yMin=wall_yMin,wall_yMax=wall_yMax, boundary=False,wall_color="r")
@@ -405,19 +413,19 @@ if quiver:
 if direction_histogram:
     fig6, ax6 = plt.subplots(1,1, figsize=(fig_width, fig_height),constrained_layout=True)
     histogram_data = get_histogram(wall_length,iteration)
-
-    cax6 = ax6.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap='rainbow', aspect='auto')
-    if wall_length_float != 0:
-        ax6 = plot_x_wall(ax6,wall_yMin=wall_yMin,wall_yMax=wall_yMax, 
-                          boundary=False,
-                          wall_color="r",
-                          walpha=1,
-                          lw=0.75,
-                          linestyle = "--"
-                          )
+    cax6 = ax6.imshow(histogram_data.T, extent=[0,L,0,L], origin="lower", cmap=cmap, aspect='auto')
+    # if wall_length_float != 0:
+    #     ax6 = plot_x_wall(ax6,wall_yMin=wall_yMin,wall_yMax=wall_yMax, 
+    #                       boundary=False,
+    #                       wall_color="r",
+    #                       walpha=1,
+    #                       lw=0.75,
+    #                       linestyle = "--"
+    #                       )
     ax6 = flow_plot(wall_length, iteration, ax = ax6, type = "stream", phase = "steady", 
                     density = 0.4,
-                    color = "black",
+                    # color = "black",
+                    color = "white"
                    )
     ax6.set_xlabel(r"x ($R_0$)")
     ax6.set_ylabel(r"y ($R_0$)")
@@ -428,7 +436,7 @@ if direction_histogram:
 
     #save fig
     if save:
-        fig6.savefig(f"{save_dir}/wall64_{wall_length_float:.2f}_histogram_stream_{iteration}.png")
+        fig6.savefig(f"{save_dir}/square64_{wall_length_float:.2f}_histogram_stream_{iteration}.png")
 
 if dual_hitogram:
     wanted_wall_lengths = available_walls[-2:]
@@ -441,7 +449,7 @@ if dual_hitogram:
         wall_yMax = L / 2 + wall_length_float / 2
 
         histogram_data = get_histogram(wall_length, iteration)
-        cax7 = ax7[i].imshow(histogram_data.T, extent=[0, L, 0, L], origin="lower", cmap='rainbow', aspect='auto')
+        cax7 = ax7[i].imshow(histogram_data.T, extent=[0, L, 0, L], origin="lower", cmap=cmap, aspect='auto')
         if wall_length_float != 0:
             ax7[i] = plot_x_wall(ax7[i], wall_yMin=wall_yMin, wall_yMax=wall_yMax,
                                 boundary=False,
@@ -452,7 +460,9 @@ if dual_hitogram:
                             type="stream",
                             phase="steady",
                             density=0.4,
-                            color="black")
+                            # color="black",
+                            color = "white",
+                            )
         ax7[i].set_xlabel(r"x ($R_0$)")
         ax7[i].set_aspect("equal")
         ax7[i].set_xticks(np.linspace(0, L, 5))
