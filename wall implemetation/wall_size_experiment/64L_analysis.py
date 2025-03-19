@@ -4,27 +4,26 @@ import matplotlib.pyplot as plt
 plt.style.use("default")
 from fractions import Fraction
 
-dir = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/64L"
+dir = str(os.getcwd())+ "\\wall implemetation\\wall_size_experiment\\64L"
 filenames = os.listdir(dir)
-dir_starter = "wall64"
+dir_starter = ["wall64","square"][1]
 print(filenames)
 
-# dir2 = str(os.getcwd())+ "/wall implemetation/wall_size_experiment/64L/wall64_0.0_10000"
-# filenames2 = os.listdir(dir2)
-# print(filenames2)
-cmap = "viridis"
+cmap = "plasma"
 L = 64
 r0 = 1
 
+### IMPORTANT AND MOST USEFUL ANALYSIS PLOTS
+alignment_direction = False
+alignemnt_spread = False
+direction_histogram = True  # Density and stream plot overlayed
+
+# Basic over plots
 single_hist = False
 average_hist = False
 stream = False  # Useless if direction_histogram on
 quiver = False  # Useless if direction_histogram on
-alignment_direction = False
-alignemnt_spread = False
-direction_histogram = True
-
-dual_hitogram = False # putting two histograms in one plot
+dual_hitogram = False # putting two histograms in one plot, bit rubbish
 
 save = False
 save_dir = str(os.getcwd())+"/wall implemetation/wall_size_experiment\\figures\\64L"
@@ -41,7 +40,7 @@ def get_params():
 available_walls = get_params()
 wall_length = available_walls[-2]
 wall_length_float = float(wall_length)
-iteration = 4
+iteration = 0
 wall_yMin = L/2 - wall_length_float/2
 wall_yMax = L/2 + wall_length_float/2
 
@@ -410,10 +409,11 @@ if direction_histogram:
     if wall_length_float != 0:
         ax6 = plot_x_wall(ax6,wall_yMin=wall_yMin,wall_yMax=wall_yMax, 
                           boundary=False,
-                          wall_color="r",
+                        #   wall_color="r",
+                          wall_color="#90EE90",
                           walpha=1,
                           lw=0.75,
-                          linestyle = "--"
+                          linestyle = "-"
                           )
     ax6 = flow_plot(wall_length, iteration, ax = ax6, type = "stream", phase = "steady", 
                     density = 0.4,

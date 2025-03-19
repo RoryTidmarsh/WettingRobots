@@ -27,8 +27,9 @@ max_num_neighbours= 100
 
 # Defining parameters for a wall only in the x direction.
 wall_x = L/2
-wall_yMin = L/2 -L/2
-wall_yMax = L/2 +L/2
+lratio = 1
+wall_yMin = L/2 -lratio*L/2
+wall_yMax = L/2 +lratio*L/2
 wall_distance = r0
 turn_factor = 0.2
 step_num = 0

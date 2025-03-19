@@ -5,6 +5,7 @@ import matplotlib.patches as patches
 import numba
 import os
 import tqdm
+skip = False # skip to timestep 1500
 
 # parameters
 L = 64 # size of box
@@ -20,8 +21,8 @@ max_num_neighbours= 100
 
 
 # Thick wall parameters
-y_min = 0+2
-y_max = L-2
+y_min = 0#+2
+y_max = L#-2
 width = r0
 x_min, x_max = L/2 - width/2, L/2 + width/2  # Thickness of r0
 
@@ -86,7 +87,7 @@ def dist_to_rect(x_pos, y_pos, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_ma
     # Create direction vector with explicit type
     direction = dir_x*dx + 1j* dir_y*dy
     
-    # Normalize for unit vector
+    # Normalise for unit vector
     if distance > 0:
         unit_vector = direction / distance
     else:
@@ -270,8 +271,9 @@ cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 
 ax = plot_rect(ax)
 print("Loading animation...")
-for i in tqdm.tqdm(range(0, 1500), desc="Running up to the first 1500 steps"):
-    animate(i)
+if skip:
+    for i in tqdm.tqdm(range(0, 1500), desc="Running up to the first 1500 steps"):
+        animate(i)
 # ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), fargs=arc_angle, interval = 5, blit = True)
 ani = FuncAnimation(fig, animate, frames=range(1, int(iterations/10)), fargs=(), interval=5, blit=True)
 ax.legend(loc = "upper right")

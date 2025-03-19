@@ -12,7 +12,6 @@ from pycircular.stats import periodic_mean_std
 import os
 from fractions import Fraction
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 # parameters
 L = 64 # size of box
@@ -294,29 +293,6 @@ def animate(frames, arc_angle, start_angle=-arc_angle/2):
     positions = new_positions.copy()
     angles = new_angles.copy()
     step_num +=1
-#     #### Animation - Uncomment up to the next "###" to see the animation ###
-#     #Update the quiver plot  
-#     qv.set_offsets(positions)
-#     qv.set_UVC(np.cos(new_angles), np.sin(new_angles), new_angles)
-#     return qv,
- 
-# ## Showing the animation
-# figwidth = 5.5
-# totalheight = 4.675
-# fig, ax = plt.subplots(figsize = (figwidth, totalheight))   
-# # ax = plot_x_wall(ax, boundary = False)
-# ax.set_title(f"Viscek Model in Python. $\\rho = {rho}$, $\\eta = {eta}$")
-# qv = ax.quiver(positions[:,0], positions[:,1], np.cos(angles), np.sin(angles), angles, clim = [-np.pi, np.pi], cmap = "hsv")
-# # Add a color bar
-# cbar = fig.colorbar(qv, ax=ax, label="Angle (radians)")
-# cbar.set_ticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
-# cbar.set_ticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
-
-# ani = FuncAnimation(fig, animate, frames = range(1, int(iterations/10)), interval = 5, blit = True, fargs = (0,0))
-# ax.legend(loc = "upper right")
-# # ani.save(f'figures/Vicek_={rho}_eta={eta}.gif', writer='pillow', fps=30)
-# plt.show()
-# np.savez_compressed(f'{os.path.dirname(__file__)}/wall_size_experiment/finalstate.npz', Positions = positions, Orientation = angles)
 
 ### SAVING DATA AS .npz FILES ###
 #finding the current working directory
@@ -461,28 +437,6 @@ for arc_angle in np.array([0,1/3,2/3,1,1.5, 2])*np.pi:#np.linspace(0,np.pi,4)[2:
         ## Saving positions and orientations for setup for recreation of the system
         # np.savez_compressed(f'{savedir}/finalstate_{arc_angle/np.pi:.2f}_{J}.npz', Positions = positions, Orientation = angles)
 
-        fig, ax = plt.subplots()
-        cax = ax.imshow(hist_pos.T, origin='lower', cmap='viridis', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
-        ax.streamplot(X*L, Y*L, tot_vy_all, tot_vx_all, color="white")
-        ax.set_title(f"Stream Plot for arc_angle={arc_angle/np.pi:.2f}π, Iteration {J}")
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        
-        cbar = fig.colorbar(cax, ax=ax)
-
-        arc = plt.Circle((center_x, center_y), radius, color='r', fill=False, linestyle='--')
-        ax.add_artist(arc)
-        plt.show()
-
-        # theta = np.linspace(start_angle, start_angle + arc_angle, 100)
-        # x_arc = center_x + radius * np.cos(theta)
-        # y_arc = center_y + radius * np.sin(theta)
-        # ax.plot(x_arc, y_arc, 'r--')
-
-        # fig1, ax1 = plt.subplots()
-        # ax1.quiver(positions[:, 0], positions[:, 1], np.cos(angles), np.sin(angles), angles, clim=[-np.pi, np.pi], cmap="hsv")
-        # ax1.set_title(f"Final State of the System for arc_angle={arc_angle/np.pi:.2f}π, Iteration {J}")
-        # plt.show()
         # Reset the data storage arrays
         hist_pos = np.zeros_like(hist_pos)
         tot_vx_all = np.zeros_like(tot_vx_all)

@@ -1,5 +1,12 @@
-*/
+# */
 
 reading_npz.ipynb
 !test128_*/
 *.zip
+*/
+
+EDIT128*
+128wall/
+interim_report_data/
+50wall/
+# !64L/

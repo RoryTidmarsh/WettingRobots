@@ -12,15 +12,16 @@ cmap = "hsv"
 L = 64
 r0 = 1
 
-
-
-histograms = True
-timeav_noise = False
-single_noise = False
-histogram_filters = False # Initial attempt to find the distance from the wall
+# Useful analysis plots
+timeav_noise = True
+single_noise = True
 Density_profile = True # rho vs x for diiferent etas
 Density_profile2 = True # rho vs x for diiferent lw
-# save = False
+save = False
+
+# Other plots not used
+histogram_filters = False # Initial attempt to find the distance from the wall
+histograms = False
 
 text_width = 3.25  # inches (single column width)
 fig_width = text_width
@@ -169,7 +170,8 @@ if timeav_noise:
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    fig.savefig(f"figures/noise_dependance.png")
+    if save:
+        fig.savefig(f"figures/noise_dependance.png")
 
 
 # Reading an indivdual case
@@ -178,7 +180,7 @@ start_index = 0
 eta = 0.1
 i = 2
 if single_noise:
-    fig,ax2 = plt.subplots()
+    fig2,ax2 = plt.subplots()
     for i in range(3):
         sim_data = read_individual(wall_length,eta,i,start_index)
         x = np.arange(0,len(sim_data),1)+start_index
@@ -189,7 +191,7 @@ if single_noise:
     ax2.set_xlabel('Time Step')
     ax2.spines['top'].set_visible(False)
     ax2.spines['right'].set_visible(False)
-    fig.tight_layout()
+    fig2.tight_layout()
     
 
 def get_averaged_histograms(target_eta, target_wall_length):
@@ -287,7 +289,6 @@ etas, wall_lengths = get_all_histogram_params()
 wall_length = wall_lengths[wall_length_ind]
 eta = etas[eta_ind]
 
-histograms = False
 if histograms:
     # etas, wall_lengths = get_all_histogram_params()
     steady, transient  = get_averaged_histograms(eta, wall_length)
@@ -447,15 +448,19 @@ if Density_profile:
         histogram = get_averaged_histograms(eta, wall_length)[0].T
         # Proper normalization:
             # 1. Divide by bin_area to get density per area
-            # 2. Divide by number of particles to normalize by particle count
+            # 2. Divide by number of particles to normalise by particle count
             # 3. Divide by number of time steps to get average over time
             # 4. Divide by number of iterations that were averaged
         iterations_count = count_iterations(eta, wall_length)
-        print(iterations_count)
+        # print(iterations_count)
 
         I1 = histogram/(bin_area*N*steady_state_steps* iterations_count)
         # I1 /=I1.mean()
         x = np.linspace(0,L, I1.shape[0])
+        max_density_index = np.argmax(I1.mean(axis=0))
+        max_density_x = x[max_density_index]
+        distance_from_wall = max_density_x - L / 2
+        print(f"Distance from wall for eta {eta}: {distance_from_wall}")
         ax7.plot(x,I1.mean(axis=0),label = r"$\eta$: " +f"{eta}")
 
     ax7.legend(frameon = False, loc = "lower right")
@@ -467,7 +472,8 @@ if Density_profile:
     # ax7.grid()
     # ax7.axhline(y=2.5e-5, linestyle="--", color="grey", alpha = 0.5)
     fig7.tight_layout()
-    fig7.savefig(f"figures/density_profile_Etas_{wall_label/L:.2f}.png")
+    if save:
+        fig7.savefig(f"figures/density_profile_Etas_{wall_label/L:.2f}.png")
 
 if Density_profile2:
     fig8, ax8 = plt.subplots(figsize = (fig_width,fig_height))
@@ -482,6 +488,7 @@ if Density_profile2:
     eta = etas[1]
     
     for wall_length_str in wall_lengths:
+        wall_length_float = float(wall_length_str)
         histogram = get_averaged_histograms(eta, wall_length_str)[0].T
         # Proper normalization:
             # 1. Divide by bin_area to get density per area
@@ -489,13 +496,16 @@ if Density_profile2:
             # 3. Divide by number of time steps to get average over time
             # 4. Divide by number of iterations that were averaged
         iterations_count = count_iterations(eta, wall_length_str)
-        print(iterations_count)
+        # print(iterations_count)
 
         I1 = histogram#/(bin_area*N*steady_state_steps* iterations_count)
         I1 /=I1.sum()
-        
+        max_density_index = np.argmax(I1.mean(axis=0))
+        max_density_x = x[max_density_index]
+        distance_from_wall = max_density_x - L / 2
+        print(f"Distance from wall for wall length {wall_length_float:.2f}: {distance_from_wall}")
         x = np.linspace(0,L, I1.shape[0])
-        wall_length_float = float(wall_length_str)
+        
         ax8.plot(x,I1.mean(axis=0),label = r"$l$: " +f"${Fraction(wall_length_float/L).limit_denominator()}$L")
 
     ax8.legend(frameon = False, loc = "lower right")
@@ -528,6 +538,8 @@ if Density_profile2:
     # ax9.set_xlabel(r"$\eta$")
     # ax9.set_ylabel(r"Max Density")
     # ax9.set_ylim(0,0.0001)
+    if save:
+        fig8.save(f"figures/2DensityGraphs.png")
 
 
 plt.show()

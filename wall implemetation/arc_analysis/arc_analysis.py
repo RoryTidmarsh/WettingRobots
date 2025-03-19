@@ -8,7 +8,7 @@ dir = str(os.getcwd())+ "/wall implemetation/arc_analysis"
 filenames = os.listdir(dir)
 dir_starter = "arc64"
 print(filenames)
-cmap = "viridis"
+cmap = "plasma"
 L = 64
 r0 = 1
 
@@ -41,13 +41,16 @@ plt.rcParams.update({
     'savefig.dpi': 300,
 })
 
-histograms = False
-stream = False
-quiver_plot = False
-alignment_direction = True
-alignment_spread = True
+# Most Useful
+hist_stream = True      # Stream and hitogram plots
 
-save = True
+# Other figures, useful, but not used in report
+quiver_plot = False
+histograms = False
+alignment_direction = False
+alignment_spread = False
+
+save = False
 
 def read_summary_file(filepath):
     summary_data = {}
@@ -109,7 +112,7 @@ def plot_arc(ax, wall_color = "r", boundary = True, walpha = 1, *args, **kwargs)
     thetas = np.linspace(start_angle, start_angle+arc_angle,200)
     x = center_x + radius*np.cos(thetas)
     y = center_y + radius*np.sin(thetas)
-    ax.plot(x,y, color = wall_color, alpha= walpha, lw=0.5, *args, **kwargs)
+    ax.plot(x,y, color = wall_color, alpha= walpha, *args, **kwargs)
 
     if boundary==True:
         #Plotting the far and near arcs
@@ -244,7 +247,6 @@ def stream_plot(angle, iteration, phase="steady", ax=None, density=1, radius = R
 
     return ax
 
-
 def flow_plot(angle, iteration, phase = "steady", ax=None, density = 1, radius = R, *args, **kwargs):
     valid_phases = ["transient", "steady"]
     if phase not in valid_phases:
@@ -304,14 +306,7 @@ def flow_plot(angle, iteration, phase = "steady", ax=None, density = 1, radius =
 
 iteration = 0
 if quiver_plot:
-    ncols  = 2
     angle = available_angles[-1]
-    # fig2, ax2 = plt.subplots(1,ncols, figsize=(fig_width,fig_width), constrained_layout=True)
-    # for i in range(ncols):
-    #     ax2[i] = flow_plot(angle, 1,ax=ax2[i])
-    #     ax2[i] = plot_arc(ax2[i], boundary=False)
-    #     ax2[i].set_title(f"Iteration {i}")
-    #     ax2[i].set_aspect('equal')
 
     fig2,ax2 = plt.subplots(1,1, figsize=(fig_width,fig_width*0.7), constrained_layout=True)
     ax2 = flow_plot(angle, iteration=iteration,ax=ax2, radius = R*0.95)
@@ -326,9 +321,9 @@ if quiver_plot:
         fig2.savefig(f"figures/arc_flow_{float(angle):.2f}.png", dpi=300)
 
 iteration = 3
-if stream:
-    angle = available_angles[-3]  # This is the full circle case
-    fig3, ax3 = plt.subplots(1, 1, figsize=(fig_width, fig_width*0.7), constrained_layout=True)
+if hist_stream:
+    angle = available_angles[-1]  # This is the full circle case
+    fig3, ax3 = plt.subplots(1, 1, figsize=(fig_width*3/4, fig_width*0.6), constrained_layout=True)
     # Get the histogram first
     hist = get_histogram(angle, iteration=iteration)
     hist /= hist.sum()
@@ -354,14 +349,19 @@ if stream:
         angle, 
         iteration=iteration,
         ax=ax3,
-        density=0.45,
+        density=0.35,
         color="white",
         radius=radius,
         integration_direction='both',
         broken_streamlines=True,
     )   
     # Add the arc
-    ax3 = plot_arc(ax3, boundary=False, linestyle = "--", label = "Barrier")
+    ax3 = plot_arc(ax3, boundary=False, linestyle = "-", label = "Barrier",
+                   wall_color="#90EE90",
+                #    wall_color = "r",
+                   linewidth=1,
+                   
+                   )
     # ax3.set_xlim(20,64)
     # ax3.set_ylim(10,54)
     ax3.set_aspect('equal')
@@ -373,7 +373,7 @@ if stream:
     cbar.set_label("Density")
 
     if save:
-        fig3.savefig(f"figures/arc_hist_stream_{float(angle):.2f}.png", dpi=300)
+        fig3.savefig(f"figures/arc_hist_stream_{float(angle):.2f}_{cmap}.png", dpi=300)
     
 
 def count_iterations(target_wall_length):
@@ -437,7 +437,7 @@ if alignment_spread:
     if save:
         fig2.savefig(f"{save_dir}/arc64_alignment_spread.png")
 
-def plot_cyclic_angles(ax, time_steps, angles, label=None, color=None, marker='.', linestyle='-', markersize=2, linewidth=1):
+def plot_cyclic_angles(ax, time_steps, angles, label=None, color=None, cutoff = 1.5, linestyle='-', linewidth=1):
     """
     Plot angular data properly handling the cyclic nature (-π to π jumps).
     
@@ -467,7 +467,7 @@ def plot_cyclic_angles(ax, time_steps, angles, label=None, color=None, marker='.
     
     # Identify where discontinuities occur (jumps greater than π)
     # We use 0.9*π as threshold to account for potential noise
-    mask = np.abs(angle_diff) > 1.8*np.pi
+    mask = np.abs(angle_diff) > cutoff*np.pi
     
     from matplotlib.collections import LineCollection
     # Create a line collection with breaks at discontinuities
@@ -485,7 +485,7 @@ if alignment_direction:
     ax3.axhline(y=np.pi/2, color='grey', alpha=0.7, linestyle='-.', lw=0.5)
     
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']  # Needed due to the line splitting
-    
+    iteration = 3
     for i, ANGLE in enumerate(available_angles):
         if float(ANGLE) >= 1.6:
             continue
@@ -499,8 +499,7 @@ if alignment_direction:
             orientation, 
             label=r"$\phi=$"+f"{Fraction(float(ANGLE)).limit_denominator(10)}" + r"$\pi$",
             color=colors[i % len(colors)],
-            marker=None,
-            markersize=4
+            cutoff = 1.6,
         )
     
     ax3.set_yticks(np.arange(-np.pi, np.pi + np.pi/2, np.pi/2))
