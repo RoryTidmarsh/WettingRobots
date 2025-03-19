@@ -1,0 +1,13 @@
+Size of box (L): 64
+Density (rho): 1
+Number of particles (N): 4096
+Interaction radius (r0): 1.0
+Noise/randomness (eta): 0.1
+Max number of neighbours: 100
+Total number of step`s: 10000 
+Arc_angle: 3.141592653589793 
+Start angle: -1.5707963267948966 
+Radius: 21.333333333333332 
+center_x: 32.0 
+center_y: 32.0 
+Alignment average steps: 10 

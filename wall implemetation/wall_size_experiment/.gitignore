@@ -1,3 +1,9 @@
-*/
-*.npz
+# */
+# *.npz
 *.zip
+
+50wall/
+128wall/
+EDIT*/
+figures/
+interim*/
