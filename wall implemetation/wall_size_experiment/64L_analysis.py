@@ -26,7 +26,7 @@ direction_histogram = True
 
 dual_hitogram = False # putting two histograms in one plot
 
-save = False
+save = True
 save_dir = str(os.getcwd())+"/wall implemetation/wall_size_experiment\\figures\\64L"
 
 def get_params():
