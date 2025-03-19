@@ -2,11 +2,11 @@
 Directory for Rory Tidmarsh's final year project on wetting robots
 
 ## Description 
+**All folders have the `.npz` files git ignored due to save time uploading
 
 ├── `basic viscek files` folder: the original code given by F.Turci, our break down of the code using 'for' loops and reading the .npz file.
 
-├──**`wall implementation`** folder: folder containing implemetation of the wall **Interim report based on this folder**
-
+├──**`wall implementation`** folder: folder containing implemetation of the wall
 
 │    ├──`wall_size_experiment` (dir): folder containing the experimental data for varying the wall
 
@@ -16,7 +16,9 @@ Directory for Rory Tidmarsh's final year project on wetting robots
 
 │    │    ├──`finalstate.npz`: final state of the result from the `Vicsek wall animation`
 
-│   ├──`arc_analysis` (dir): folder containing the experimental data for varying arc subtended angle and confined geometry for a full circule
+│   ├──`arc_analysis` (dir): folder containing the experimental data for varying arc subtended angle and confined geometry for a full circle. This has `.npz` files in too
+
+│   ├──`noise experiment` (dir): experiment for varying noise to get order parameter graph
 
 │   ├──`Vicsek_wall_animation`: python file containing animation of the system
 
