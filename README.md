@@ -29,6 +29,8 @@ Directory for Rory Tidmarsh's final year project on wetting robots
         
 ├──`mygradient` (dir): start of kilombo code
 
+├──`mini-quarto-website` (dir): directory for the website that runs the animations.
+
 
 ## Packages
 - `numpy` for numerical computations
